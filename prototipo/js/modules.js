@@ -76,33 +76,27 @@ route('seguridad',{title:'Acceso y perfiles',crumb:'Seguridad',view(){
     ${msg('info','Sesión actual: <b>'+ROLES[SESSION.role].label+'</b>. El portal del cliente está siempre disponible desde el enlace superior.')}`; }});
 
 /* ---------------------------------------------------------------- PARÁMETROS GENERALES */
-function estadoCarga(id){
-  const ts = DB.tickets.filter(t=>t.tb===id);
-  if(ts.some(t=>t.estado==='EN RUTA')) return 'EN RUTA';
-  if(ts.some(t=>['ENTREGADO','CERRADO'].includes(t.estado))) return 'ENTREGADO';
-  return '—';
-}
 const ESTADO_UNIDAD = {label:'Estado', f:r=>pill(r.estado)};
 const dupNombre = (tabla,label) => (v,row) => DB[tabla].some(x=>x!==row&&norm(x.nombre)===norm(v.nombre))?{nombre:'Ya existe un '+label+' llamado “'+v.nombre+'”'}:{};
 const PARAM_CFG = {
   tv:{key:'tv',tabla:'tiposVehiculo',label:'Tipo de vehículo',prefix:'TV-',padLen:3,canDisable:false,
-    cols:[{label:'Código',k:'id'},{label:'Tipo de vehículo',k:'nombre'},{label:'Ejes estándar',k:'ejes'},{label:'Carga máx. estándar',f:r=>n2(r.cargaMax)+' kg'},{label:'Consumo estándar',f:r=>r.consumo+' L/100 km'}],
-    fields:[{k:'nombre',label:'Tipo de vehículo',type:'text',req:1,ph:'Camión'},{k:'ejes',label:'N° de ejes estándar',type:'number',req:1,min:1},{k:'cargaMax',label:'Carga máxima estándar (kg)',type:'number',req:1,min:1},{k:'consumo',label:'Consumo estándar (L/100 km)',type:'number',req:1,min:1}],
+    cols:[{label:'Código',k:'id'},{label:'Tipo de vehículo',k:'nombre'},{label:'Ejes',k:'ejes'},{label:'Consumo estándar',f:r=>r.consumo+' L/100 km'},{label:'Capacidad (ejes × peso por eje)',f:r=>n2(r.ejes*pesoEje())+' kg'}],
+    fields:[{k:'nombre',label:'Tipo de vehículo',type:'text',req:1,ph:'Camión'},{k:'ejes',label:'N° de ejes',type:'number',req:1,min:1,help:'A más peso se requieren más ejes: capacidad = ejes × peso máximo por eje (POL-05).'},{k:'consumo',label:'Consumo estándar (L/100 km)',type:'number',req:1,min:1}],
     validate:dupNombre('tiposVehiculo','tipo de vehículo'),
     used:r=>[...DB.vehiculos.filter(v=>v.tipo===r.id).map(v=>'Vehículo '+v.placa),...DB.productos.filter(p=>p.tv===r.id).map(p=>'Producto '+p.id)]},
   car:{key:'car',tabla:'cargas',label:'Tipo de carga',prefix:'CG-',padLen:3,canDisable:false,
-    cols:[{label:'Código',k:'id'},{label:'Material',k:'material'},{label:'Volumen',f:r=>r.volumen+' m³'},{label:'Peso',f:r=>r.peso+' kg'},{label:'Temperatura',k:'temp'},{label:'Estado',f:r=>{const e=estadoCarga(r.id);return e==='—'?'<span class="pill mute">SIN ENVÍOS</span>':pill(e)}}],
-    fields:[{k:'material',label:'Material',type:'text',req:1},{k:'volumen',label:'Volumen por unidad (m³)',type:'number',step:'0.01',req:1,min:0.01,help:'Cada 1 m³ ocupado equivale a 1 ticket.'},{k:'peso',label:'Peso por unidad (kg)',type:'number',step:'0.01',req:1,min:0.01},{k:'temp',label:'Temperatura de transporte',type:'text',req:1,ph:'Ej. 2 a 8 °C'}],
-    lock:r=>{ const t=DB.tickets.find(x=>x.tb===r.id&&x.estado==='EN RUTA'); return t?'No se puede modificar este tipo de carga mientras tenga envíos EN RUTA ('+t.id+'). Solo se edita cuando no hay carga en ruta.':''; },
+    cols:[{label:'Código',k:'id'},{label:'Material',k:'material'}],
+    fields:[{k:'material',label:'Material',type:'text',req:1,ph:'Perecible'}],
+    validate:(v,row)=>DB.cargas.some(x=>x!==row&&norm(x.material)===norm(v.material))?{material:'Ya existe un tipo de carga con ese material'}:{},
     used:r=>[...DB.productos.filter(p=>p.tb===r.id).map(p=>'Producto '+p.id),...DB.tickets.filter(t=>t.tb===r.id).map(t=>'Ticket '+t.id)]},
   tc:{key:'tc',tabla:'tiposContenedor',label:'Tipo de contenedor',prefix:'TC-',padLen:3,canDisable:false,
-    cols:[{label:'Código',k:'id'},{label:'Tipo de contenedor',k:'nombre'},{label:'Material',k:'material'},{label:'N° máx. tickets',k:'tickets'},{label:'Carga máx. estándar',f:r=>n2(r.cargaMax)+' kg'},{label:'Temperatura',k:'temp'}],
-    fields:[{k:'nombre',label:'Tipo de contenedor',type:'text',req:1,ph:'Freezer'},{k:'material',label:'Material',type:'text',req:1,ph:'MC-1'},{k:'tickets',label:'N° máx. de tickets (1 ticket = 1 m³)',type:'number',req:1,min:1},{k:'cargaMax',label:'Carga máxima estándar (kg)',type:'number',req:1,min:1},{k:'temp',label:'Rango de temperatura',type:'text',req:1}],
-    validate:(v,row)=>{ const e=dupNombre('tiposContenedor','tipo de contenedor')(v,row); const mx=Math.max(...DB.tiposVehiculo.map(t=>t.cargaMax)); if(v.cargaMax>mx) e.cargaMax='La carga máx. no puede superar la del tipo de vehículo más grande ('+n2(mx)+' kg)'; return e; },
+    cols:[{label:'Código',k:'id'},{label:'Tipo de contenedor',k:'nombre'},{label:'Material',k:'material'},{label:'Temperatura',k:'temp'}],
+    fields:[{k:'nombre',label:'Tipo de contenedor',type:'text',req:1,ph:'Freezer'},{k:'material',label:'Material',type:'text',req:1,ph:'MC-1'},{k:'temp',label:'Rango de temperatura',type:'text',req:1}],
+    validate:dupNombre('tiposContenedor','tipo de contenedor'),
     used:r=>[...DB.contenedores.filter(c=>c.tipo===r.id).map(c=>'Contenedor '+c.id),...DB.productos.filter(p=>p.tc===r.id).map(p=>'Producto '+p.id)]},
   al:{key:'al',tabla:'alcances',label:'Alcance',prefix:'AL-',padLen:3,canDisable:false,
-    cols:[{label:'Código',k:'id'},{label:'Origen',k:'origen'},{label:'Destino',k:'destino'},{label:'Tipo de vía',k:'via'},{label:'Paradas',k:'paradas'},{label:'Distancia',f:r=>r.km?n2(r.km)+' km':'—'},{label:'Duración',f:r=>r.horas?r.horas+' h':'—'}],
-    fields:[{k:'origen',label:'Origen (provincia)',type:'text',req:1},{k:'destino',label:'Destino (provincia)',type:'text',req:1},{k:'via',label:'Tipo de vía',type:'select',opts:()=>['Asfaltada','Asfalt./Trocha','Fluvial','Mixta'].map(x=>[x,x]),req:1},{k:'paradas',label:'Paradas intermedias',type:'text',ph:'Huacho, Trujillo'},{k:'km',label:'Distancia (km)',type:'number',req:1,min:1},{k:'horas',label:'Duración (h)',type:'number',req:1,min:1,help:'De aquí salen las horas esperadas de cada paso del seguimiento.'}],
+    cols:[{label:'Código',k:'id'},{label:'Origen',k:'origen'},{label:'Destino',k:'destino'},{label:'Tipo de vía',k:'via'},{label:'Paradas',k:'paradas'},{label:'Distancia',f:r=>r.km?n2(r.km)+' km':'—'},{label:'Duración estimada',f:r=>r.horas?'≈ '+r.horas+' h':'—'}],
+    fields:[{k:'origen',label:'Origen (provincia)',type:'text',req:1},{k:'destino',label:'Destino (provincia)',type:'text',req:1},{k:'via',label:'Tipo de vía',type:'select',opts:()=>['Asfaltada','Asfalt./Trocha','Fluvial','Mixta'].map(x=>[x,x]),req:1},{k:'paradas',label:'Paradas intermedias',type:'text',ph:'Huacho, Trujillo'},{k:'km',label:'Distancia (km)',type:'number',req:1,min:1},{k:'horas',label:'Duración estimada (h)',type:'number',req:1,min:1,help:'Es una duración estimada: de aquí salen las horas esperadas de cada paso del seguimiento.'}],
     validate:v=>v.origen&&v.destino&&v.origen.toLowerCase()===v.destino.toLowerCase()?{destino:'El destino no puede ser igual al origen'}:{},
     used:r=>DB.viajes.filter(v=>v.alcance===r.id).map(v=>'Viaje '+v.id)},
   hor:{key:'hor',tabla:'horarios',label:'Horario',prefix:'HOR-',padLen:3,canDisable:false,
@@ -124,20 +118,20 @@ const PARAM_CFG = {
 };
 const PARAM_TABS = [['tv','Tipo de vehículo'],['car','Tipo de carga'],['tc','Tipo de contenedor'],['al','Alcance'],['hor','Horario'],['ser','Tipo de servicio'],['ta','Tipo de autómata']];
 const INFO = {
-  tv:'Aquí solo se definen las categorías de vehículo y sus características estándar. Las placas y el estado de cada unidad se registran en la flota (Registro de flota).',
-  tc:'Un ticket equivale a ocupar el espacio mínimo de 1 m³ dentro de un contenedor. Por eso el “N° máx. de tickets” es igual a los m³ del tipo de contenedor. Los contenedores físicos se registran en la flota.',
-  car:'El estado indica si hay envíos de este tipo de carga EN RUTA o ya ENTREGADOS. Mientras haya carga en ruta, el registro no se puede editar ni eliminar.',
+  tv:'Aquí solo se definen las categorías de vehículo. La capacidad en kg es N° de ejes × peso máximo por eje (política POL-05): a más peso, más ejes. Las placas y el estado de cada unidad se registran en la flota.',
+  tc:'El tipo solo define material y temperatura. El volumen (m³, y por tanto los tickets) es de cada contenedor y se registra en la flota.',
+  car:'El tipo de carga solo tiene código y material. Las dimensiones y el peso los digita el cliente al cotizar; el estado del envío se ve en el Registro de flota.',
   ser:'Económico: se cobra por espacio comprometido (tickets). Express: tarifa fija por la reserva exclusiva de todo el contenedor; es exclusivo de una sola carga, cualquiera sea su tipo.',
   hor:'El horario fija la salida y la llegada programada: es la ventana en la que debe viajar el producto. La llegada estimada de cada envío es la salida más la duración del Alcance, y debe caber en esa ventana (REG-07).',
-  al:'La duración del alcance se usa para calcular la hora esperada de cada paso del seguimiento, sin depender de un GPS.',
+  al:'La duración es una estimación: se usa para calcular la hora esperada de cada paso del seguimiento, sin depender de un GPS.',
   ta:'Los autómatas físicos se registran en la flota. Cada paso del envío que lo confirma un autómata exige uno de este tipo, disponible.'
 };
 route('parametros',{title:'Parámetros generales',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(arg){
   const key = PARAM_CFG[arg]?arg:'tv', cfg = PARAM_CFG[key];
   const tabs = PARAM_TABS.map(([k,l])=>`<a class="tab ${k===key?'on':''}" href="#/parametros/${k}">${l}</a>`).join('');
   return guide(['Elija el parámetro en las pestañas.','<b>Agregar</b>: se abre el formulario vacío; el código se completa solo.','Al <b>Guardar</b> el sistema valida; si algo está mal marca el campo y explica el motivo.','<b>Editar</b> exige seleccionar una fila; <b>Eliminar</b> pide confirmación.','Si el registro ya lo usan viajes o productos, no se elimina: se propone <b>deshabilitarlo</b> (unidades) o se indica qué lo usa.'],0)+
-   msg('info','<b>Definición:</b> los parámetros son variables que se mantienen fijas para definir el producto. Solo se mantienen <b>tipos</b>: las unidades físicas (placas, contenedores, autómatas) se registran en la flota, y las <b>tarifas</b> y el <b>seguimiento</b> son reportes (2.2.2).')+
-   `<div class="tabs">${tabs}</div><div class="tabbody">${INFO[key]?`<div class="infoline">${info(INFO[key])}</div>`:''}${crudView(cfg)}</div>`; }});
+   msg('info','<b>Definición:</b> los parámetros son variables que se mantienen fijas para definir el producto. Solo se mantienen <b>tipos</b> (haga clic en una fila para ver sus filas asociadas en los demás parámetros): las unidades físicas (placas, contenedores, autómatas) se registran en la flota, y las <b>tarifas</b> y el <b>seguimiento</b> son reportes (2.2.2).')+
+   `<div class="tabs">${tabs}</div><div class="tabbody">${INFO[key]?`<div class="infoline">${info(INFO[key])}</div>`:''}${crudView(cfg)}</div><div id="assoc-panel">${assocPanelHTML()}</div>`; }});
 
 /* ---------------------------------------------------------------- CATÁLOGOS */
 const PROD_CFG = {key:'prod',tabla:'productos',label:'Producto',prefix:'PROD',canDisable:true,
@@ -190,16 +184,17 @@ route('tincidentes',{title:'Tipos de incidente',crumb:'2.1 Gerencial › 2.1.1 M
   return guide(['Cada tipo de incidente tiene una severidad y un protocolo de respuesta.','Los incidentes de retraso se generan solos cuando un paso no se confirma dentro de la tolerancia (POL-04).'],0)+crudView(TINC_CFG); }});
 
 /* ---------------------------------------------------------------- FLOTA (recursos físicos) */
+const envioCol = campo => ({label:'Carga en envío',f:r=>{ const u=unidadEnvio(campo,r.id); return u.estado==='LIBRE'?pill('LIBRE'):pill(u.estado)+' <small>'+esc(u.carga)+' · '+esc(u.viaje)+'</small>'; }});
 const FLOTA_CFG = {
   veh:{key:'fveh',tabla:'vehiculos',label:'Vehículo',prefix:'r-veh-',padLen:3,canDisable:true,
-    cols:[{label:'Código',k:'id'},{label:'Placa',k:'placa'},{label:'Tipo',f:r=>esc(nomTV(r.tipo))},{label:'Carga máx.',f:r=>n2((tvDe(r.tipo)||{}).cargaMax)+' kg'},{label:'Ejes',f:r=>(tvDe(r.tipo)||{}).ejes},ESTADO_UNIDAD],
-    fields:[{k:'placa',label:'Placa',type:'text',req:1,ph:'ABC123'},{k:'tipo',label:'Tipo de vehículo',type:'select',opts:todos('tiposVehiculo',x=>x.nombre),req:1,help:'La unidad hereda la carga máxima, los ejes y el consumo de su tipo.'},{k:'estado',label:'Estado',type:'select',opts:estOpts,req:1,def:'OK'}],
+    cols:[{label:'Código',k:'id'},{label:'Placa',k:'placa'},{label:'Tipo',f:r=>esc(nomTV(r.tipo))},{label:'Ejes',f:r=>(tvDe(r.tipo)||{}).ejes},{label:'Capacidad',f:r=>n2(capKgVeh(r))+' kg'},ESTADO_UNIDAD,envioCol('veh')],
+    fields:[{k:'placa',label:'Placa',type:'text',req:1,ph:'ABC123'},{k:'tipo',label:'Tipo de vehículo',type:'select',opts:todos('tiposVehiculo',x=>x.nombre),req:1,help:'La unidad hereda los ejes del tipo; su capacidad en kg es ejes × peso máximo por eje.'},{k:'estado',label:'Estado operativo',type:'select',opts:estOpts,req:1,def:'OK'}],
     validate:(v,row)=>{ const e={}; if(v.placa&&!/^[A-Za-z0-9]{6}$/.test(v.placa)) e.placa='La placa tiene 6 caracteres alfanuméricos'; else if(DB.vehiculos.some(x=>x!==row&&x.placa.toUpperCase()===String(v.placa).toUpperCase())) e.placa='La placa '+v.placa+' ya está registrada'; return e; },
     onSave:r=>{ r.placa=String(r.placa).toUpperCase(); },
     used:r=>DB.viajes.filter(v=>v.veh===r.id).map(v=>'Viaje '+v.id)},
   con:{key:'fcon',tabla:'contenedores',label:'Contenedor',prefix:'r-cont-',padLen:3,canDisable:true,
-    cols:[{label:'Código',k:'id'},{label:'Tipo',f:r=>esc(nomTC(r.tipo))},{label:'N° máx. tickets',f:r=>(tcDe(r.tipo)||{}).tickets},{label:'Carga máx.',f:r=>n2((tcDe(r.tipo)||{}).cargaMax)+' kg'},{label:'Temperatura',f:r=>esc((tcDe(r.tipo)||{}).temp)},ESTADO_UNIDAD],
-    fields:[{k:'tipo',label:'Tipo de contenedor',type:'select',opts:todos('tiposContenedor',x=>x.nombre),req:1,help:'El contenedor hereda tickets, carga máxima y temperatura de su tipo.'},{k:'estado',label:'Estado',type:'select',opts:estOpts,req:1,def:'OK'}],
+    cols:[{label:'Código',k:'id'},{label:'Tipo',f:r=>esc(nomTC(r.tipo))},{label:'Volumen',f:r=>r.vol+' m³ ('+r.vol+' tickets)'},{label:'Temperatura',f:r=>esc((tcDe(r.tipo)||{}).temp)},ESTADO_UNIDAD,envioCol('cont')],
+    fields:[{k:'tipo',label:'Tipo de contenedor',type:'select',opts:todos('tiposContenedor',x=>x.nombre),req:1,help:'La temperatura la define el tipo.'},{k:'vol',label:'Volumen del contenedor (m³)',type:'number',req:1,min:1,help:'1 ticket = 1 m³: el volumen es el número de tickets del contenedor.'},{k:'estado',label:'Estado operativo',type:'select',opts:estOpts,req:1,def:'OK'}],
     used:r=>DB.viajes.filter(v=>v.cont===r.id).map(v=>'Viaje '+v.id)},
   aut:{key:'faut',tabla:'automatas',label:'Autómata',prefix:'AUT-',padLen:3,canDisable:true,
     cols:[{label:'Código',k:'id'},{label:'Nombre',k:'nombre'},{label:'Tipo',f:r=>esc((taDe(r.tipo)||{}).nombre)},ESTADO_UNIDAD],
@@ -211,7 +206,7 @@ const FLOTA_TABS = [['veh','Vehículos'],['con','Contenedores'],['aut','Autómat
 route('flota',{title:'Registro de flota',crumb:'2.2 Operativo › 2.2.1 Data-entry › 2.2.1.3 Registro de flota',view(arg){
   const key = FLOTA_CFG[arg]?arg:'veh', cfg = FLOTA_CFG[key];
   const tabs = FLOTA_TABS.map(([k,l])=>`<a class="tab ${k===key?'on':''}" href="#/flota/${k}">${l}</a>`).join('');
-  return msg('info','Aquí se registran las <b>unidades físicas</b> (placa, código, estado). Sus características estándar salen de los <b>tipos</b> definidos en Parámetros. Una unidad en MANTENIMIENTO no se asigna a ningún viaje.')+
+  return msg('info','Aquí se registran las <b>unidades físicas</b> (placa, código, estado). Sus características estándar salen de los <b>tipos</b> definidos en Parámetros. Una unidad en MANTENIMIENTO no se asigna a ningún viaje. «Carga en envío» muestra qué carga lleva la unidad y el estado del envío (LIBRE, RESERVADO, EN RUTA, ENTREGADO).'+(key==='con'?' '+info('Un ticket equivale a ocupar el espacio mínimo de 1 m³ dentro de un contenedor.'):''))+
    `<div class="tabs">${tabs}</div><div class="tabbody">${crudView(cfg)}</div>`; }});
 
 /* ---------------------------------------------------------------- DATA-ENTRY: CLIENTES */
@@ -229,13 +224,13 @@ route('clientes',{title:'Registro de cliente',crumb:'2.2 Operativo › 2.2.1 Dat
 /* ---------------------------------------------------------------- ASIGNACIÓN DE TICKET (asistente de 6 pasos) */
 const T_STEPS = ['Cliente y carga','Servicio y espacio','Estimación del precio','Confirmación del servicio','Medio de pago','Orden de pago'];
 const T_CODE = ['','','2.2.1.2.1','2.2.1.2.2','2.2.1.2.3','2.2.1.2.4'];
-function newDraft(){ return {cliente:'',tb:'',uds:'',origen:'',destino:'',rutaErr:'',prod:'',alc:'',fecha:'',res:null,ticket:null}; }
+function newDraft(){ return {cliente:'',tb:'',uds:'',largo:'',ancho:'',alto:'',peso:'',origen:'',destino:'',rutaErr:'',prod:'',alc:'',fecha:'',res:null,ticket:null}; }
 const D = () => UI.draft || (UI.draft = newDraft());
-const ok1 = d => d.cliente && d.tb && +d.uds>0;
+const ok1 = d => d.cliente && d.tb && espD(d).n>0;
 const ok2 = d => d.res && d.res.ok;
 function calcRes(d){
   d.res=null; if(!(d.prod&&d.alc&&d.fecha)) return;
-  const prod=by(DB.productos,d.prod), alc=by(DB.alcances,d.alc), th=by(DB.horarios,prod.th), esp=espacio(d.tb,+d.uds);
+  const prod=by(DB.productos,d.prod), alc=by(DB.alcances,d.alc), th=by(DB.horarios,prod.th), esp=espD(d);
   if(reglaActiva('REG-04') && diaDe(d.fecha)!==th.diaSalida){ d.res={ok:false,error:'REG-04: este producto sale los <b>'+th.diaSalida+'</b> y el '+dmy(d.fecha)+' es '+diaDe(d.fecha).toLowerCase()+'. Elija una de las fechas sugeridas.'}; return; }
   const r=resolverViaje(prod,alc,d.fecha); if(r.error){ d.res={ok:false,error:r.error}; return; }
   const ver=verificarEspacio(r.viaje,esp,prod);
@@ -255,38 +250,65 @@ route('ticket',{title:'Asignación de ticket',crumb:'2.2 Operativo › 2.2.1 Dat
   const body=[t1,t2,t3,t4,t5,t6][step-1](d);
   return guide(G_TICKET,step)+stepper(step,d)+`<div class="card" id="tbody">${body}</div>`; }});
 
+const espD = d => espacioDe({cant:d.uds,largo:d.largo,ancho:d.ancho,alto:d.alto,peso:d.peso});
+function dimsCampos(d,act){
+  const I=(k,label,ph,extra='')=>`<label class="fld"><span>${label}</span><input type="number" min="0" step="any" name="${k}" value="${esc(d[k])}" data-on="${act}" placeholder="${ph}" ${extra}></label>`;
+  return I('uds','Cantidad de bultos *','Ej. 10','step="1"')+I('largo','Largo del bulto (cm) *','Ej. 100')+I('ancho','Ancho del bulto (cm) *','Ej. 50')+I('alto','Alto del bulto (cm) *','Ej. 100')+I('peso','Peso de un bulto (kg) *','Ej. 60');
+}
+function espHTML(d){ const esp=espD(d); if(!esp.n) return '<i>Digite la cantidad de bultos, las dimensiones (largo × ancho × alto) y el peso de un bulto para calcular el espacio que comprometerá el ticket.</i>';
+  return `<b>Espacio a comprometer</b> = ${d.uds} bulto(s) × ${d.largo}×${d.ancho}×${d.alto} cm (${n2(esp.vb)} m³ c/u) · ${d.peso} kg c/u → 1 ticket = 1 m³ (mínimo 1)<br><span class="big">${esp.n} ticket(s) · ${n2(esp.m3)} m³ · ${n2(esp.kg)} kg</span><br><small>Con ese peso se necesitan al menos ${Math.max(1,Math.ceil(esp.kg/pesoEje()))} eje(s) (${n2(pesoEje())} kg por eje).</small>`; }
 function t1(d){
-  const cli=DB.clientes.map(c=>[c.id,c.nombre+' ('+c.id+')']), bienes=DB.cargas.map(b=>[b.id,b.material+' ('+b.volumen+' m³ · '+b.peso+' kg c/u)']);
-  const esp=espacio(d.tb,+d.uds);
+  const cli=DB.clientes.map(c=>[c.id,c.nombre+' ('+c.id+')']), bienes=DB.cargas.map(b=>[b.id,b.material]);
   return `<h3>1. Cliente y carga</h3>
    <div class="fgrid"><label class="fld"><span>Cliente *</span><select data-change="t1-set" name="cliente">${optsHTML(cli,d.cliente,true)}</select><small>¿No está? <a href="#/clientes">Regístrelo primero (2.2.1.1)</a></small></label>
    <label class="fld"><span>Tipo de carga *</span><select data-change="t1-set" name="tb">${optsHTML(bienes,d.tb,true)}</select></label>
-   <label class="fld"><span>Unidades (bultos) *</span><input type="number" min="1" name="uds" value="${esc(d.uds)}" data-on="t1-live" placeholder="Ej. 10"></label>
+   ${dimsCampos(d,'t1-live')}
    </div>
-   <div id="t1-esp" class="calc">${espHTML(d,esp)}</div>
+   <div id="t1-esp" class="calc">${espHTML(d)}</div>
    ${d.err1?msg('bad','✖ '+d.err1):''}
    <div class="nav"><span></span><button class="btn okb" data-act="t1-next">Siguiente →</button></div>`;
 }
-function espHTML(d,esp){ const b=by(DB.cargas,d.tb); if(!b||!(+d.uds>0)) return '<i>Elija el tipo de carga y las unidades para calcular el espacio que comprometerá el ticket.</i>';
-  return `<b>Espacio a comprometer</b> = ${d.uds} uds × ${b.volumen} m³ (${b.peso} kg c/u) → 1 ticket = 1 m³ (mínimo 1)<br><span class="big">${esp.n} ticket(s) · ${n2(esp.m3)} m³ · ${n2(esp.kg)} kg</span>`; }
-ACT['t1-set']=el=>{ const d=D(); d[el.name]=el.value; if(el.name==='tb'){ d.prod=''; d.res=null; } $('#t1-esp').innerHTML=espHTML(d,espacio(d.tb,+d.uds)); };
-ACT['t1-live']=el=>{ const d=D(); d.uds=el.value; $('#t1-esp').innerHTML=espHTML(d,espacio(d.tb,+d.uds)); };
-ACT['t1-next']=()=>{ const d=D(), f=$('#tbody'); d.cliente=$('[name=cliente]',f).value; d.tb=$('[name=tb]',f).value; d.uds=$('[name=uds]',f).value;
-  d.err1=!d.cliente?'Seleccione un cliente':!d.tb?'Seleccione el tipo de carga':!(+d.uds>0)?'Ingrese las unidades (mayor a 0)':'';
+ACT['t1-set']=el=>{ const d=D(); d[el.name]=el.value; if(el.name==='tb'){ d.prod=''; d.res=null; } $('#t1-esp').innerHTML=espHTML(d); };
+ACT['t1-live']=el=>{ const d=D(); d[el.name]=el.value; $('#t1-esp').innerHTML=espHTML(d); };
+ACT['t1-next']=()=>{ const d=D(), f=$('#tbody'); ['cliente','tb','uds','largo','ancho','alto','peso'].forEach(k=>{ d[k]=$('[name='+k+']',f).value; });
+  d.err1=!d.cliente?'Seleccione un cliente':!d.tb?'Seleccione el tipo de carga':!espD(d).n?'Digite cantidad, dimensiones y peso de la carga (todos mayores a 0)':'';
   if(d.err1){ $('#tbody').innerHTML=t1(d); return; } d.res=null; go('ticket/2'); };
+
+/* ---- calendario de disponibilidad (mes) ---- */
+UI.cal = {y:HOY.getFullYear(), m:HOY.getMonth()};
+const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function calendarioHTML(d,act){
+  const prod=by(DB.productos,d.prod), alc=by(DB.alcances,d.alc);
+  if(!prod) return '<small>Elija primero el servicio para ver los días de salida.</small>';
+  if(!alc) return '<small>Escriba el origen y el destino para ver la disponibilidad de cada día.</small>';
+  const th=by(DB.horarios,prod.th), esp=espD(d), pedido=esp.n?esp:{n:1,kg:0,m3:0}, {y,m}=UI.cal;
+  const hoy=ymd(HOY), dias=new Date(y,m+1,0).getDate(), lead=(new Date(y,m,1).getDay()+6)%7;
+  const cel=[]; for(let i=0;i<lead;i++) cel.push('<span class="cd blank"></span>');
+  for(let n=1;n<=dias;n++){ const f=y+'-'+pad(m+1)+'-'+pad(n), dia=diaDe(f);
+    if(f<hoy){ cel.push(`<span class="cd past">${n}</span>`); continue; }
+    if(dia!==th.diaSalida){ cel.push(`<span class="cd none" title="Sin salida: este producto sale los ${th.diaSalida}">${n}</span>`); continue; }
+    const r=resolverViaje(prod,alc,f); let cls='full', tip='';
+    if(r.error){ tip=r.error.replace(/<[^>]+>/g,''); }
+    else { const ver=verificarEspacio(r.viaje,pedido,prod); tip=ver.ok?ver.libre.n+' ticket(s) y '+n2(ver.libre.kg)+' kg libres':ver.motivo.replace(/<[^>]+>/g,'');
+      cls=!ver.ok?'full':((ver.libre.n-ver.need)/ver.cap.n<0.25?'low':'free'); }
+    cel.push(cls==='full'?`<span class="cd full" title="${esc(tip)}">${n}</span>`:`<button type="button" class="cd ${cls} ${d.fecha===f?'on':''}" data-act="${act}" data-f="${f}" title="${esc(tip)}">${n}</button>`); }
+  const ini=new Date(HOY.getFullYear(),HOY.getMonth(),1), prev=(y===ini.getFullYear()&&m===ini.getMonth());
+  return `<div class="cal"><div class="calh"><button type="button" class="calb" data-act="cal-nav" data-dir="-1" ${prev?'disabled':''}>‹</button><b>${MESES[m]} ${y}</b><button type="button" class="calb" data-act="cal-nav" data-dir="1">›</button></div>
+   <div class="calg">${['Lu','Ma','Mi','Ju','Vi','Sá','Do'].map(x=>`<span class="cdw">${x}</span>`).join('')}${cel.join('')}</div>
+   <div class="calleg"><i class="lg free"></i> Disponible <i class="lg low"></i> Poco cupo <i class="lg full"></i> Sin cupo <i class="lg none"></i> Sin salida · el cupo considera lo que va a enviar (${pedido.n} ticket(s), ${n2(pedido.kg)} kg)</div></div>`; }
+ACT['cal-nav']=el=>{ let {y,m}=UI.cal; m+=+el.dataset.dir; if(m<0){ m=11; y--; } if(m>11){ m=0; y++; } UI.cal={y,m}; if(location.hash.startsWith('#/ticket')){ $('#tbody').innerHTML=t2(D()); } else render(); };
 
 const prodsDisponibles = d => DB.productos.filter(p=>p.activo&&p.tb===d.tb&&tarifaVigente(tarifaDe(p)));
 function t2(d){
   const prods=prodsDisponibles(d).map(p=>[p.id,p.id+' · '+nombreProducto(p)]);
   const al=by(DB.alcances,d.alc);
-  const prod=by(DB.productos,d.prod), th=prod?by(DB.horarios,prod.th):null, esp=espacio(d.tb,+d.uds);
-  const chips=th?`<div class="chips">Fechas de salida (${th.diaSalida}): ${proximasFechas(th.diaSalida,4).map(f=>`<button class="chip ${d.fecha===f?'on':''}" data-act="t2-fecha" data-f="${f}">${dmy(f)}</button>`).join('')}</div>`:'';
+  const prod=by(DB.productos,d.prod), th=prod?by(DB.horarios,prod.th):null, esp=espD(d);
   return `<h3>2. Servicio y espacio</h3>
    <div class="resumen">Carga: <b>${d.uds} × ${esc(nomCG(d.tb))}</b> → <b>${esp.n} ticket(s) · ${n2(esp.m3)} m³ · ${n2(esp.kg)} kg</b></div>
    <div class="fgrid"><label class="fld"><span>Producto *</span><select data-change="t2-set" name="prod">${optsHTML(prods,d.prod,true)}</select>${prods.length?'':'<em>No hay productos activos con tarifa vigente para este tipo de carga.</em>'}</label>
    <label class="fld"><span>Origen *</span><input name="origen" list="dl-lugares" value="${esc(d.origen)}" data-change="t2-set" placeholder="Ej. Lima"></label>
    <label class="fld"><span>Destino *</span><input name="destino" list="dl-lugares" value="${esc(d.destino)}" data-change="t2-set" placeholder="Ej. Chiclayo"></label><datalist id="dl-lugares">${lugares().map(l=>'<option value="'+esc(l)+'">').join('')}</datalist>
-   <label class="fld"><span>Fecha del viaje *</span><input type="date" name="fecha" value="${esc(d.fecha)}" data-change="t2-set" min="2026-06-24"></label></div>${chips}
+   </div><div class="fld"><span>Fecha del viaje * <small>(elija un día disponible del calendario)</small></span>${calendarioHTML(d,'t2-fecha')}${d.fecha?'<small>Fecha elegida: <b>'+diaDe(d.fecha)+' '+dmy(d.fecha)+'</b></small>':''}</div>
    ${d.rutaErr?msg('bad','✖ '+d.rutaErr):al?msg('info','Ruta '+esc(al.origen)+' → '+esc(al.destino)+': '+n2(al.km)+' km · '+al.horas+' h · '+esc(al.via)+(al.paradas&&al.paradas!=='—'?' · paradas: '+esc(al.paradas):'')):''}
    <div id="t2-res">${t2res(d)}</div>
    <div class="nav"><a class="btn" href="#/ticket/1">← Atrás</a><button class="btn okb" data-act="t2-next" ${ok2(d)?'':'disabled'}>Siguiente →</button></div>`;
@@ -322,7 +344,7 @@ function t4(d){
   if(d.ticket){ const t=d.ticket; return `<h3>4. Servicio confirmado</h3>${msg('ok','✔ Ticket <b>'+t.id+'</b> generado y espacio reservado ('+t.n+' ticket(s)). Estado: '+t.estado)}<div class="nav"><span></span><a class="btn okb" href="#/ticket/5">Ir al medio de pago →</a></div>`; }
   const prod=by(DB.productos,d.prod), tar=tarifaDe(prod), ver=d.res.ver, pr=estimarPrecio(tar,ver.need), v=d.res.viaje, i=prodInfo(prod), seq=secuenciaDe(v);
   return `<h3>4. Confirmación del servicio</h3>
-   <div class="cards2"><div class="mini"><b>Resumen</b><br>Cliente: ${esc(by(DB.clientes,d.cliente).nombre)}<br>Carga: ${d.uds} × ${esc(nomCG(d.tb))}<br>Producto: ${esc(prod.id)} · ${esc(nombreProducto(prod))}<br>Ruta: ${esc(nomAL(d.alc))}<br>Viaje: ${dmy(v.fecha)} · ${esc(vehDe(v).placa)} · ${esc(v.cont)}</div>
+   <div class="cards2"><div class="mini"><b>Resumen</b><br>Cliente: ${esc(by(DB.clientes,d.cliente).nombre)}<br>Carga: ${d.uds} bulto(s) de ${esc(nomCG(d.tb))} (${d.largo}×${d.ancho}×${d.alto} cm · ${d.peso} kg c/u)<br>Producto: ${esc(prod.id)} · ${esc(nombreProducto(prod))}<br>Ruta: ${esc(nomAL(d.alc))}<br>Viaje: ${dmy(v.fecha)} · ${esc(vehDe(v).placa)} · ${esc(v.cont)}</div>
    <div class="mini"><b>Se comprometerá</b><br><span class="big">${ver.need} ticket(s) · ${n2(d.res.esp.kg)} kg</span><br>Total a pagar: <b>${money(pr.total)}</b><br>Reserva: ${politica('POL-02',15)} min para pagar</div></div>
    <div class="mini wide"><b>Cómo viajará su carga (${esc(i.prot.nombre)})</b><div class="seqchips">${seq.pasos.map(n=>`<span class="sc"><b>${n}</b> ${by(PASOS,n,'n').nombre}<small>${hhmm(esperadoPaso(v,n))}</small></span>`).join('')}</div></div>
    <div class="nav"><a class="btn" href="#/ticket/3">← Atrás</a><button class="btn okb big" data-act="t-confirm">✔ Confirmar servicio y reservar espacio</button></div>`;
@@ -331,12 +353,12 @@ function t4(d){
 function emitirTicket(d){
   const prod=by(DB.productos,d.prod), alc=by(DB.alcances,d.alc);
   const r=resolverViaje(prod,alc,d.fecha); if(r.error) return {error:r.error};
-  const esp=espacio(d.tb,+d.uds), ver=verificarEspacio(r.viaje,esp,prod);      // verificación final en tiempo real
+  const esp=espD(d), ver=verificarEspacio(r.viaje,esp,prod);      // verificación final en tiempo real
   if(!ver.ok) return {error:ver.motivo+' (otro ticket ocupó el espacio)'};
   if(!by(DB.viajes,r.viaje.id)) DB.viajes.push(r.viaje);
   const tar=tarifaDe(prod), pr=estimarPrecio(tar,ver.need); let n=88103; while(DB.tickets.some(t=>t.id==='TK-'+n)) n++;
   DB.ordenes++;
-  const t={id:'TK-'+n,viaje:r.viaje.id,cliente:d.cliente,tb:d.tb,unidades:+d.uds,n:ver.need,m3:esp.m3,kg:esp.kg,origen:alc.origen,destino:alc.destino,tarifa:tar.id,sub:pr.sub,igv:pr.igv,total:pr.total,estado:'RESERVADO',paso:0,creado:new Date(AHORA),hist:[],medio:null,op:'OP-'+pad(DB.ordenes,6)};
+  const t={id:'TK-'+n,viaje:r.viaje.id,cliente:d.cliente,tb:d.tb,unidades:+d.uds,dim:{l:+d.largo,a:+d.ancho,h:+d.alto,p:+d.peso},n:ver.need,m3:esp.m3,kg:esp.kg,origen:alc.origen,destino:alc.destino,tarifa:tar.id,sub:pr.sub,igv:pr.igv,total:pr.total,estado:'RESERVADO',paso:0,creado:new Date(AHORA),hist:[],medio:null,op:'OP-'+pad(DB.ordenes,6)};
   DB.tickets.push(t); return {ticket:t};
 }
 ACT['t-confirm']=()=>{ const d=D(); const r=emitirTicket(d); if(r.error){ toast('✖ '+r.error,'bad'); calcRes(d); go('ticket/2'); return; }
@@ -391,7 +413,7 @@ function pagar(t,m){
   if(t.estado==='PAGADO') return true;
   if(reservaVencida(t)||t.estado==='VENCIDO'){ t.estado='VENCIDO'; toast('⏱ La reserva '+t.id+' venció: el espacio fue liberado','bad'); return false; }
   if(t.estado!=='RESERVADO'){ toast('✖ El ticket '+t.id+' está '+t.estado+' y no admite pago','bad'); return false; }
-  t.estado='PAGADO'; t.medio=m; toast('💳 Pago confirmado por la pasarela: orden '+t.op); return true; }
+  t.estado='PAGADO'; t.medio=m; t.pagado=new Date(AHORA); toast('💳 Pago confirmado por la pasarela: orden '+t.op); return true; }
 ACT['pay-select']=el=>{ UI.pm[el.dataset.t]=el.dataset.m; UI.payErr[el.dataset.t]={}; go(el.dataset.ctx==='p'?'p-pago/2/'+el.dataset.t:'ticket/6'); };
 ACT['pay-sim']=el=>{ const t=by(DB.tickets,el.dataset.t); pagar(t,UI.pm[t.id]); render(); };
 ACT['pay-submit']=f=>{
@@ -439,18 +461,19 @@ route('rtarifas',{title:'Reporte de tarifas',crumb:'2.2 Operativo › 2.2.2 Repo
     ${sin.length?msg('warn','Productos sin tarifa: '+sin.map(p=>p.id).join(', ')+' (no pueden activarse).'):''}`; }});
 
 route('tickets',{title:'Tickets emitidos',crumb:'2.2 Operativo › 2.2.2 Reportes',view(){
-  const rows=[...DB.tickets].reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr data-act="tk-open" data-id="${t.id}" class="click"><td><b>${t.id}</b></td><td>${esc(by(DB.clientes,t.cliente).nombre)}</td><td>${esc(nomAL(v.alcance))}<br><small>${dmy(v.fecha)} · ${esc(vehDe(v).placa)} · ${esc(v.cont)}</small></td><td>${t.n} ticket(s)<br><small>${n2(t.m3)} m³ · ${n2(t.kg)} kg</small></td><td class="r">${money(t.total)}</td><td>${pill(t.estado)}</td></tr>`; }).join('');
-  return guide(['1 ticket = 1 m³ (mínimo) de espacio dentro del contenedor de una unidad, para un viaje en una fecha.','Un envío compra tantos tickets como m³ ocupa (redondeado hacia arriba) y respeta los kg.','Haga clic en un ticket para ver su ficha completa.'],0)+
-   `<table class="tbl"><thead><tr><th>Ticket</th><th>Cliente</th><th>Viaje</th><th>Espacio comprometido</th><th>Total</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table>`; }});
+  const rows=[...DB.tickets].reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr data-act="tk-open" data-id="${t.id}" class="click"><td class="c">${t.medio?`<input type="checkbox" data-act="tk-check" data-id="${t.id}" ${UI.tkSel.has(t.id)?'checked':''} title="Seleccionar para exportar">`:'<small title="Sin pago no hay voucher">—</small>'}</td><td><b>${t.id}</b></td><td>${esc(by(DB.clientes,t.cliente).nombre)}</td><td>${esc(nomAL(v.alcance))}<br><small>${dmy(v.fecha)} · ${esc(vehDe(v).placa)} · ${esc(v.cont)}</small></td><td>${t.n} ticket(s)<br><small>${n2(t.m3)} m³ · ${n2(t.kg)} kg</small></td><td class="r">${money(t.total)}</td><td>${pill(t.estado)}</td></tr>`; }).join('');
+  const todos=pagados().length&&pagados().every(t=>UI.tkSel.has(t.id));
+  return `<div class="toolbar"><button class="btn okb" id="vch-btn" data-act="vch-export">${vchLabel()}</button> <small>El voucher se emite por cada ticket pagado; en la ventana de impresión elija «Guardar como PDF».</small></div>
+   <table class="tbl"><thead><tr><th class="c"><input type="checkbox" data-act="tk-all" ${todos?'checked':''} title="Seleccionar todos los pagados"></th><th>Ticket</th><th>Cliente</th><th>Viaje</th><th>Espacio comprometido</th><th>Total</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table>`; }});
 ACT['tk-open']=el=>{ const t=by(DB.tickets,el.dataset.id), v=by(DB.viajes,t.viaje), p=by(DB.productos,v.prod), tar=by(DB.tarifas,t.tarifa), c=by(DB.clientes,t.cliente);
   openModal('Ficha de ticket '+t.id,`<table class="tbl mini"><tbody>
    <tr><td>Cliente</td><td>${esc(c.nombre)} (${esc(c.id)})</td></tr><tr><td>Producto</td><td>${esc(p.id)} · ${esc(nombreProducto(p))}</td></tr>
    <tr><td>Viaje</td><td>${esc(v.id)} · ${dmy(v.fecha)} · ${esc(nomAL(v.alcance))}</td></tr><tr><td>Unidad / contenedor</td><td>${esc(vehDe(v).placa)} · ${esc(v.cont)}</td></tr>
-   <tr><td>Carga</td><td>${t.unidades} × ${esc(nomCG(t.tb))}</td></tr><tr><td><b>Espacio comprometido</b></td><td><b>${t.n} ticket(s) · ${n2(t.m3)} m³ reales · ${n2(t.kg)} kg</b></td></tr>
+   <tr><td>Carga</td><td>${t.unidades} bulto(s) de ${esc(nomCG(t.tb))}${t.dim?'<br><small>'+t.dim.l+'×'+t.dim.a+'×'+t.dim.h+' cm · '+t.dim.p+' kg c/u</small>':''}</td></tr><tr><td><b>Espacio comprometido</b></td><td><b>${t.n} ticket(s) · ${n2(t.m3)} m³ reales · ${n2(t.kg)} kg</b></td></tr>
    <tr><td>Tarifa</td><td>${esc(tar.id)} · ${esc(tar.modalidad)}</td></tr><tr><td>Total</td><td>${money(t.sub)} + IGV ${money(t.igv)} = <b>${money(t.total)}</b></td></tr>
    <tr><td>Pago</td><td>${t.op||'—'} ${t.medio?'· '+MEDIOS[t.medio]:''}</td></tr>
    <tr><td>Estado</td><td>${pill(t.estado)} · último paso: ${t.paso?t.paso+' '+by(PASOS,t.paso,'n').nombre:'ninguno'}</td></tr></tbody></table>`,
-   [{label:'Ir al seguimiento',cls:'okb',fn:()=>{closeModal();go('seguimiento/'+t.id)}},{label:'Cerrar',fn:closeModal}],{wide:true}); };
+   [...(t.medio?[{label:'⬇ Voucher (PDF)',cls:'okb',fn:()=>exportarVouchers([t.id])}]:[]),{label:'Ir al seguimiento',fn:()=>{closeModal();go('seguimiento/'+t.id)}},{label:'Cerrar',fn:closeModal}],{wide:true}); };
 
 /* ---- seguimiento por secuencia de pasos (reporte, sin GPS) ---- */
 route('seguimiento',{title:'Seguimiento del envío',crumb:'2.2 Operativo › 2.2.2 Reportes',view(arg){
@@ -510,3 +533,63 @@ ACT['inc-save']=f=>{ const fd=new FormData(f); const tipo=fd.get('tipo'), ticket
   const inc={id:siguienteId('IN-',DB.incidentes,4),tipo,ticket,fecha:new Date(AHORA),detalle:det,estado:'ABIERTO'}; DB.incidentes.push(inc);
   const ti=by(DB.tiposIncidente,tipo), pr=by(DB.protocolos,ti.protocolo); closeModal();
   toast('🔔 Alerta generada ('+ti.severidad+'). Protocolo '+pr.id+': '+pr.secuencia,ti.severidad==='Crítica'?'bad':'warn'); render(); };
+
+/* ---------------------------------------------------------------- ASOCIACIONES ENTRE PARÁMETROS */
+UI.assocSel = null;
+const ASOC = [['tv','Tipo de vehículo'],['car','Tipo de carga'],['tc','Tipo de contenedor'],['hor','Horario'],['ser','Tipo de servicio'],['al','Alcance']];
+const ASOC_CAMPO = {tv:'tv',car:'tb',tc:'tc',hor:'th',ser:'ts'};
+function asociados(key,id){
+  let prods;
+  if(key==='al') prods=[...new Set(DB.viajes.filter(v=>v.alcance===id).map(v=>v.prod))].map(x=>by(DB.productos,x));
+  else if(ASOC_CAMPO[key]) prods=DB.productos.filter(p=>p[ASOC_CAMPO[key]]===id);
+  else return null;
+  const out={prods:prods.map(p=>p.id)};
+  ASOC.forEach(([k])=>{ if(k===key) return;
+    out[k]= k==='al' ? [...new Set(DB.viajes.filter(v=>out.prods.includes(v.prod)).map(v=>v.alcance))] : [...new Set(prods.map(p=>p[ASOC_CAMPO[k]]))]; });
+  return out;
+}
+function esRel(key,id){ const s=UI.assocSel; if(!s||s.key===key) return false; const a=asociados(s.key,s.id); return !!a && (a[key]||[]).includes(id); }
+Object.values(PARAM_CFG).forEach(c=>{ c.rel=r=>esRel(c.key,r.id); });
+function nomParam(k,id){ const r=by(DB[PARAM_CFG[k].tabla],id); if(!r) return id;
+  return k==='tv'||k==='tc'||k==='ser'?r.nombre : k==='car'?r.material : k==='al'?r.origen+' → '+r.destino : horTxt(r); }
+function assocPanelHTML(){
+  const s=UI.assocSel; if(!s) return '<p class="hint">Haga clic en una fila de un parámetro para ver a qué filas de los demás parámetros está asociada.</p>';
+  const a=asociados(s.key,s.id);
+  const tit=PARAM_TABS.find(t=>t[0]===s.key)[1]+' · '+esc(nomParam(s.key,s.id));
+  if(!a) return `<div class="assoc"><b>${tit}</b><p class="hint">Este parámetro no se combina en los productos: no tiene asociaciones con otros parámetros.</p></div>`;
+  const blocks=ASOC.filter(([k])=>k!==s.key).map(([k,l])=>{ const ids=a[k]||[]; return `<div class="ablk"><b>${l}</b>${ids.length?ids.map(i=>`<a class="achip" href="javascript:void(0)" data-act="assoc-go" data-k="${k}" data-id="${esc(i)}">${esc(nomParam(k,i))}</a>`).join(''):'<small>—</small>'}</div>`; }).join('');
+  return `<div class="assoc"><b>Asociado a “${tit}”</b> <small>(según los productos y viajes que lo usan)</small><div class="agrid">${blocks}<div class="ablk"><b>Productos</b>${a.prods.length?a.prods.map(p=>`<a class="achip" href="#/productos">${p}</a>`).join(''):'<small>—</small>'}</div></div></div>`;
+}
+function onRowSel(k,id){ if(!PARAM_CFG[k]) return; UI.assocSel={key:k,id}; const p=$('#assoc-panel'); if(p) p.innerHTML=assocPanelHTML(); }
+ACT['assoc-go']=el=>{ const k=el.dataset.k, id=el.dataset.id; UI.crud[k]=UI.crud[k]||{sel:null,q:'',aviso:'',hi:null}; UI.crud[k].sel=id; UI.assocSel={key:k,id}; if(location.hash==='#/parametros/'+k) render(); else go('parametros/'+k); };
+
+/* ---------------------------------------------------------------- VOUCHERS (PDF por impresión) */
+UI.tkSel = new Set();
+const pagados = () => DB.tickets.filter(t=>t.medio);
+function voucherHTML(t){
+  const v=by(DB.viajes,t.viaje), p=by(DB.productos,v.prod), c=by(DB.clientes,t.cliente), tar=by(DB.tarifas,t.tarifa), pl=planViaje(v), dm=t.dim;
+  return `<section class="vch"><header><div><b class="marca">🚚 Transporte Seguro</b><br><small>Comprobante de pago del servicio de transporte</small></div><div class="num">Orden<br><b>${esc(t.op)}</b></div></header>
+   <table><tr><th>Ticket</th><td>${esc(t.id)}</td><th>Fecha de pago</th><td>${t.pagado?dmy(ymd(new Date(t.pagado)))+' '+hhmm(new Date(t.pagado)):'—'}</td></tr>
+   <tr><th>Cliente</th><td>${esc(c.nombre)} (${esc(c.id)})</td><th>Medio de pago</th><td>${esc(MEDIOS[t.medio]||'—')}</td></tr>
+   <tr><th>Ruta</th><td>${esc(nomAL(v.alcance))}</td><th>Salida</th><td>${diaDe(v.fecha)} ${dmy(v.fecha)} ${hhmm(pl.sal)}</td></tr>
+   <tr><th>Servicio</th><td>${esc(nombreProducto(p))}</td><th>Unidad</th><td>${esc(vehDe(v).placa)} · ${esc(v.cont)}</td></tr>
+   <tr><th>Carga</th><td colspan="3">${t.unidades} bulto(s) de ${esc(nomCG(t.tb))}${dm?' · '+dm.l+'×'+dm.a+'×'+dm.h+' cm y '+dm.p+' kg c/u':''} → ${n2(t.m3)} m³ · ${n2(t.kg)} kg</td></tr>
+   <tr><th>Espacio comprometido</th><td colspan="3">${t.n} ticket(s) (1 ticket = 1 m³)</td></tr></table>
+   <table class="tot"><tr><td>Tarifa ${esc(tar.id)} (${esc(tar.modalidad)})</td><td class="r">${money(t.sub)}</td></tr><tr><td>IGV ${politica('POL-01',18)} %</td><td class="r">${money(t.igv)}</td></tr><tr class="g"><td><b>Total pagado</b></td><td class="r"><b>${money(t.total)}</b></td></tr></table>
+   <footer>Estado del ticket: ${esc(t.estado)} · Documento generado el ${dmy(ymd(AHORA))} ${hhmm(AHORA)}</footer></section>`;
+}
+const VCH_CSS = 'body{font-family:Arial,Helvetica,sans-serif;color:#222;margin:0}.vch{width:170mm;margin:12mm auto;border:2px solid #222;padding:8mm;page-break-after:always}.vch:last-child{page-break-after:auto}.vch header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #222;padding-bottom:6px;margin-bottom:10px}.marca{font-size:20px}.num{text-align:right}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px}th{text-align:left;background:#eee;width:22%}th,td{border:1px solid #999;padding:5px 7px}.tot td{border:0;border-bottom:1px solid #ccc}.tot .g td{border-top:2px solid #222;font-size:16px}.r{text-align:right}footer{font-size:11px;color:#555;margin-top:8px}';
+function exportarVouchers(ids){
+  const lista=(ids&&ids.length?ids.map(i=>by(DB.tickets,i)):pagados()).filter(t=>t&&t.medio);
+  if(!lista.length){ toast('✖ No hay tickets pagados para exportar (un voucher se emite al pagar)','bad'); return; }
+  const salta=(ids&&ids.length?ids.length:0)-lista.length;
+  const f=document.createElement('iframe'); f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(f);
+  const doc=f.contentDocument; doc.open(); doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Vouchers de pago</title><style>'+VCH_CSS+'</style></head><body>'+lista.map(voucherHTML).join('')+'</body></html>'); doc.close();
+  toast('📄 '+lista.length+' voucher(s) listos'+(salta>0?' ('+salta+' sin pago omitido(s))':'')+': en la ventana de impresión elija «Guardar como PDF»');
+  setTimeout(()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ toast('✖ El navegador bloqueó la impresión','bad'); } setTimeout(()=>f.remove(),4000); },400);
+}
+ACT['vch-export']=()=>exportarVouchers([...UI.tkSel]);
+ACT['vch-one']=el=>exportarVouchers([el.dataset.id]);
+ACT['tk-check']=el=>{ el.checked?UI.tkSel.add(el.dataset.id):UI.tkSel.delete(el.dataset.id); const b=$('#vch-btn'); if(b) b.textContent=vchLabel(); };
+ACT['tk-all']=el=>{ pagados().forEach(t=>el.checked?UI.tkSel.add(t.id):UI.tkSel.delete(t.id)); render(); };
+const vchLabel = () => '⬇ Exportar vouchers (PDF)'+(UI.tkSel.size?' · '+UI.tkSel.size+' seleccionado(s)':' · todos los pagados');

@@ -17,13 +17,13 @@ const precioDe = p => { const t=tarifaDe(p); if(!t) return ''; return t.base==='
 route('p-catalogo',{title:'',view(){
   const cards=DB.productos.filter(p=>p.activo&&tarifaVigente(tarifaDe(p))).map(p=>{ const i=prodInfo(p), exp=esExpress(p);
     return `<div class="pcard"><div class="pcico">${ICON[p.tb]||'📦'}</div><h3>Carga ${esc(i.tb.material.toLowerCase())}</h3><p class="pdesc">Viaja en ${esc(nomTV(p.tv).toLowerCase())} con contenedor ${esc(nomTC(p.tc).toLowerCase())}. Sale los <b>${i.th.diaSalida}</b> a las ${h12(i.th.hSalida)}.</p>
-     <div class="ptags"><span class="ptag ${exp?'exp':''}">${esc(i.ts.modalidad)}</span><span class="ptag">Temperatura ${esc(i.tb.temp)}</span><span class="ptag">${esc(i.prot.nombre)}</span></div>
+     <div class="ptags"><span class="ptag ${exp?'exp':''}">${esc(i.ts.modalidad)}</span><span class="ptag">Contenedor ${esc(i.tc.nombre.toLowerCase())} · ${esc(i.tc.temp)}</span><span class="ptag">${esc(i.prot.nombre)}</span></div>
      ${exp?'<p class="pmute">Servicio exclusivo: el contenedor viaja solo con tu carga.</p>':''}
      <div class="pprice">Desde <b>${precioDe(p)}</b></div><a class="pbtn" href="#/p-cotizar" data-act="p-pick" data-prod="${p.id}">Cotizar este servicio</a></div>`; }).join('');
   return `<section class="phero"><div><span class="pkick">Catálogo de servicios</span><h1>Transportamos tu carga con seguimiento paso a paso</h1><p>Elige el tipo de carga, reserva el espacio que necesitas (1 ticket = 1 m³) y sigue cada etapa del traslado. Sin llamadas, sin GPS externo.</p><a class="pbtn big" href="#/p-cotizar">Cotizar envío</a></div><div class="pheroart">🚚📦</div></section>
    <h2 class="ph2">¿Qué transportamos?</h2><div class="pgrid">${cards}</div>
    <h2 class="ph2">Rutas disponibles</h2><div class="pchips">${DB.alcances.filter(a=>a.km).map(a=>`<a class="pchip" href="#/p-cotizar" data-act="p-ruta" data-o="${esc(a.origen)}" data-d="${esc(a.destino)}">${esc(a.origen)} → ${esc(a.destino)} <small>${n2(a.km)} km · ${a.horas} h</small></a>`).join('')}</div>
-   <h2 class="ph2">Cómo funciona</h2><div class="psteps"><div><b>1</b><h4>Reserva tu espacio</h4><p>Indicas qué envías y cuántas unidades; calculamos los tickets (m³) y kg que ocupará.</p></div><div><b>2</b><h4>Elige cómo pagar</h4><p>Ves el precio con IGV, reservamos tu espacio ${politica('POL-02',15)} minutos y eliges tarjeta, PagoEfectivo o banco.</p></div><div><b>3</b><h4>Sigue los 7 pasos</h4><p>Recibido, despachado, en tránsito, en parada, en reparto, entregado y cerrado.</p></div></div>`; }});
+   <h2 class="ph2">Cómo funciona</h2><div class="psteps"><div><b>1</b><h4>Reserva tu espacio</h4><p>Digitas las medidas y el peso de tu carga; calculamos los tickets (m³) y el peso por eje que ocupará.</p></div><div><b>2</b><h4>Elige cómo pagar</h4><p>Ves el precio con IGV, reservamos tu espacio ${politica('POL-02',15)} minutos y eliges tarjeta, PagoEfectivo o banco.</p></div><div><b>3</b><h4>Sigue los 7 pasos</h4><p>Recibido, despachado, en tránsito, en parada, en reparto, entregado y cerrado.</p></div></div>`; }});
 ACT['p-pick']=el=>{ const p=by(DB.productos,el.dataset.prod); UI.pd=Object.assign(newDraft(),{cliente:PCLI,tb:p.tb,prod:p.id,uds:''}); };
 
 UI.pd = null;
@@ -35,8 +35,7 @@ route('p-cotizar',{title:'',view(){
   const prods=prodsDisponibles(d).map(p=>[p.id,nombreProducto(p)]);
   const alcs=DB.alcances.filter(a=>a.km).map(a=>[a.id,a.origen+' → '+a.destino]);
   const alc=by(DB.alcances,d.alc), prod=by(DB.productos,d.prod), th=prod?by(DB.horarios,prod.th):null;
-  const chips=th?`<div class="pchips">${proximasFechas(th.diaSalida,4).map(f=>`<button class="pchip btnchip ${d.fecha===f?'on':''}" data-act="pd-fecha" data-f="${f}">${diaDe(f).slice(0,3)} ${dmy(f)}</button>`).join('')}</div>`:'';
-  const espd = d.tb&&+d.uds>0?espacio(d.tb,+d.uds):null;
+  const espd = espD(d).n?espD(d):null;
   let right='<div class="pempty">Completa el formulario para ver tu tarifa y el espacio disponible.</div>';
   if(d.res){ if(!d.res.viaje) right=`<div class="perr">${d.res.error}</div>`;
    else { const tar=tarifaDe(prod), ver=d.res.ver, pr=estimarPrecio(tar,ver.need), v=d.res.viaje, pl=planViaje(v);
@@ -44,16 +43,22 @@ route('p-cotizar',{title:'',view(){
      <div class="prow"><span>Espacio a reservar</span><b>${ver.need} ticket(s) · ${n2(d.res.esp.kg)} kg${ver.express?' (Express)':''}</b></div>
      <div class="prow"><span>Disponible ese día</span><b>${ver.libre.n} ticket(s) · ${n2(ver.libre.kg)} kg</b></div>
      <div class="prow"><span>Salida / llegada estimada</span><b>${hhmm(pl.sal)} → ${hhmm(pl.lle)}</b></div>
-     ${d.res.ok?`<div class="pok">✔ Hay espacio para tu carga</div><button class="pbtn big full" data-act="pd-solicitar">Solicitar servicio</button>`:`<div class="perr">${d.res.error}<br><small>Prueba otra fecha o reduce las unidades.</small></div>`}`; } }
+     ${d.res.ok?`<div class="pok">✔ Hay espacio para tu carga</div><button class="pbtn big full" data-act="pd-solicitar">Solicitar servicio</button>`:`<div class="perr">${d.res.error}<br><small>Prueba otra fecha o reduce la cantidad de bultos.</small></div>`}`; } }
   return `<h1 class="ph1">Cotizar envío</h1><div class="pcols"><div class="pbox"><h3>Datos del envío</h3>
     <label class="pf"><span>¿Qué envías?</span><select data-change="pd-set" name="tb">${optsHTML(bienes,d.tb,true)}</select></label>
-    <label class="pf"><span>Unidades (bultos)</span><input type="number" min="1" name="uds" value="${esc(d.uds)}" data-change="pd-set" placeholder="Ej. 40">${espd?`<small>Ocuparán ${espd.n} ticket(s) (${n2(espd.m3)} m³) · ${n2(espd.kg)} kg</small>`:''}</label>
+    <div class="pf"><span>Dimensiones de tu carga</span><div class="pdim">
+      <label>Bultos<input type="number" min="1" step="1" name="uds" value="${esc(d.uds)}" data-change="pd-set" placeholder="10"></label>
+      <label>Largo (cm)<input type="number" min="0" step="any" name="largo" value="${esc(d.largo)}" data-change="pd-set" placeholder="100"></label>
+      <label>Ancho (cm)<input type="number" min="0" step="any" name="ancho" value="${esc(d.ancho)}" data-change="pd-set" placeholder="50"></label>
+      <label>Alto (cm)<input type="number" min="0" step="any" name="alto" value="${esc(d.alto)}" data-change="pd-set" placeholder="100"></label>
+      <label>Peso de 1 bulto (kg)<input type="number" min="0" step="any" name="peso" value="${esc(d.peso)}" data-change="pd-set" placeholder="60"></label></div>
+      ${espd?`<small>Ocuparán ${espd.n} ticket(s) (${n2(espd.m3)} m³) · ${n2(espd.kg)} kg · mínimo ${Math.max(1,Math.ceil(espd.kg/pesoEje()))} eje(s)</small>`:'<small>Digita cantidad, medidas de un bulto y su peso.</small>'}</div>
     <label class="pf"><span>Servicio</span><select data-change="pd-set" name="prod">${optsHTML(prods,d.prod,true)}</select></label>
     <label class="pf"><span>Origen</span><input name="origen" list="dl-lugares" value="${esc(d.origen)}" data-change="pd-set" placeholder="Ej. Lima" autocomplete="off"></label>
     <label class="pf"><span>Destino</span><input name="destino" list="dl-lugares" value="${esc(d.destino)}" data-change="pd-set" placeholder="Ej. Chiclayo" autocomplete="off"></label>
     <datalist id="dl-lugares">${lugares().map(l=>'<option value="'+esc(l)+'">').join('')}</datalist>
-    ${d.rutaErr?`<div class="perr">${esc(d.rutaErr)}</div>`:alc?`<div class="pok">Ruta disponible: ${n2(alc.km)} km · ${alc.horas} h de viaje</div>`:''}
-    <div class="pf"><span>Fecha de salida</span>${th?chips:'<small>Elige primero el servicio</small>'}</div></div>
+    ${d.rutaErr?`<div class="perr">${esc(d.rutaErr)}</div>`:alc?`<div class="pok">Ruta disponible: ${n2(alc.km)} km · duración estimada ≈ ${alc.horas} h</div>`:''}
+    <div class="pf"><span>Fecha de salida <small>(elige un día disponible)</small></span>${calendarioHTML(d,'pd-fecha')}</div></div>
     <div class="pbox pright"><h3>Tu tarifa</h3>${right}</div></div>`; }});
 ACT['pd-set']=el=>{ const d=PD(); d[el.name]=el.value; if(el.name==='tb'){ d.prod=''; d.fecha=''; } if(el.name==='prod') d.fecha=''; if(el.name==='origen'||el.name==='destino') syncRuta(d); calcRes(d); render(); };
 ACT['p-ruta']=el=>{ const d=PD(); d.origen=el.dataset.o; d.destino=el.dataset.d; syncRuta(d); calcRes(d); };

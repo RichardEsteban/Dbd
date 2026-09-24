@@ -185,3 +185,22 @@ a.tl:hover{background:var(--acc)} a.tl.active{background:var(--acc);border-left-
 .ptag.exp{background:#fff1d6;color:#a05a00}
 .rolecard.acc{display:block;text-decoration:none;color:var(--ink);cursor:pointer} .rolecard.acc:hover{background:var(--acc)} .rolecard.acc small{display:block;color:#666}
 .login .fld em{color:var(--bad);font-size:12px;font-style:normal}
+
+/* ---- calendario de disponibilidad ---- */
+.cal{border:2px solid var(--line);border-radius:4px;background:#fff;padding:10px;max-width:340px;box-shadow:3px 3px 0 #2223}
+.calh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.calb{border:2px solid var(--line);background:#fff;border-radius:3px;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1} .calb[disabled]{opacity:.35;cursor:not-allowed}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cdw{text-align:center;font-size:11px;opacity:.7} .cd{height:34px;border-radius:3px;display:grid;place-items:center;font:inherit;font-size:13px;border:1.5px solid transparent;background:none;padding:0}
+.cd.blank{visibility:hidden} .cd.past,.cd.none{color:#aaa} .cd.none{background:repeating-linear-gradient(45deg,#f3f3f3,#f3f3f3 4px,#fff 4px,#fff 8px)}
+.cd.free{background:var(--okbg);border-color:var(--ok);color:var(--ok);font-weight:700;cursor:pointer} .cd.low{background:var(--warnbg);border-color:var(--warn);color:var(--warn);font-weight:700;cursor:pointer}
+.cd.full{background:var(--badbg);border-color:var(--bad);color:var(--bad);text-decoration:line-through;cursor:not-allowed}
+.cd.on{outline:3px solid var(--ink);outline-offset:1px} button.cd:hover{filter:brightness(.95)}
+.calleg{margin-top:8px;font-size:11.5px;line-height:1.9} .calleg .lg{display:inline-block;width:11px;height:11px;border-radius:2px;border:1.5px solid;margin:0 3px 0 6px;vertical-align:-1px}
+.calleg .lg.free{background:var(--okbg);border-color:var(--ok)} .calleg .lg.low{background:var(--warnbg);border-color:var(--warn)} .calleg .lg.full{background:var(--badbg);border-color:var(--bad)} .calleg .lg.none{background:#eee;border-color:#bbb}
+.pdim{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px} .pdim label{display:flex;flex-direction:column;gap:3px;font-size:12px} .pdim input{border:2px solid var(--line);border-radius:3px;padding:6px 8px;background:#fff;font:inherit}
+/* ---- asociaciones entre parámetros ---- */
+.tbl tr.rel td{background:#fff6cc;box-shadow:inset 3px 0 0 #d9a400}
+.assoc{border:2px solid var(--line);border-radius:4px;background:#fff;padding:10px 14px;margin-top:14px;box-shadow:3px 3px 0 #2223}
+.agrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px} .ablk{display:flex;flex-wrap:wrap;gap:6px;align-items:center} .ablk>b{width:100%;font-size:12.5px}
+.achip{border:1.5px solid var(--line);background:#fff6cc;border-radius:12px;padding:0 10px;font-size:12.5px;text-decoration:none;color:var(--ink)} .achip:hover{background:var(--acc)}

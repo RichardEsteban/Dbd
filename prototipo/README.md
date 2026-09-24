@@ -38,8 +38,10 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 7. **Aplicativo (3.1)**: avanzar reloj y ejecutar la actualización → libera reservas vencidas; generar indicadores.
 8. **Consulta de indicadores (2.1.2.1)** lee lo generado por el batch.
 9. **Técnico (3.2)**: backup manual → generar otro ticket → restaurar (los datos vuelven de verdad).
-10. **Peso vs. volumen**: 6 unidades de gas el 26/06 caben en tickets pero no en kg (350 kg c/u) → se rechaza por peso.
-11. **Portal del cliente**: catálogo, cotizar con direcciones, medio de pago, orden de pago y rastreo.
+10. **Peso por eje**: 30 bultos de 100×50×100 cm y 350 kg c/u el 01/07 caben en tickets (15 m³) pero pesan 10,5 t y el camión (2 ejes × 5 000 kg) solo soporta 10 t → se rechaza y el sistema indica que necesita 3 ejes.
+11. **Portal del cliente**: el cliente digita las dimensiones de su carga, elige el día en el **calendario de disponibilidad**, paga y rastrea.
+12. **Asociaciones**: en Parámetros, clic en una fila (p. ej. el tipo Camión) → panel con las filas asociadas en los demás parámetros y resaltado en las otras pestañas.
+13. **Vouchers**: Reportes › Tickets emitidos › «Exportar vouchers (PDF)» (imprimir → Guardar como PDF).
 
 ## Servicios disponibles
 - **Económico (por ticket):** perecible (Mar y Mié), abarrotes (Jue y Sáb), medicamentos (Mar), gas (Vie).
@@ -51,7 +53,9 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 - **Parámetro** = variable fija que define el producto; solo se mantienen **tipos** (no placas ni estados). Las unidades físicas van en el **Registro de flota**. Tarifas y seguimiento son **reportes**, no parámetros.
 - **Producto** = tipo de vehículo + tipo de carga + horario + protocolo + tipo de servicio (la tarifa sale del reporte).
 - **Horario** = salida y llegada programadas (ventana); la ruta elegida debe caber en esa ventana (REG-07).
-- **Ticket** = espacio comprometido (1 ticket = 1 m³ mínimo, y kg) en el contenedor de una unidad para un viaje en una fecha.
+- **Ticket** = espacio comprometido (1 ticket = 1 m³ mínimo) en el contenedor de una unidad para un viaje en una fecha; solo se genera si cabe en m³ y en el peso por eje del vehículo (ejes × 5 000 kg, POL-05).
+- **Tipo de carga** = solo código y material; el cliente digita largo, ancho, alto y peso de su bulto y la cantidad.
+- **Contenedor** = cada unidad de la flota tiene su volumen (m³); el tipo define material y temperatura.
 - **Express** = tarifa fija, reserva todo el contenedor y es exclusivo de una sola carga, cualquiera sea su tipo.
 - **Seguimiento** = secuencia de 7 pasos confirmados por autómatas o por el sistema (sin GPS).
 

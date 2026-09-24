@@ -5,7 +5,9 @@
    - FLOTA (recursos físicos, Data-entry): vehículos con placa, contenedores y autómatas, cada uno con su estado.
    - TARIFAS y SEGUIMIENTO: son REPORTES (no se mantienen como parámetros).
    - TICKET: 1 ticket = 1 m³ mínimo de espacio dentro de un contenedor. Un envío compra
-     tantos tickets como m³ ocupa (redondeado hacia arriba) y además debe respetar los kg.
+     tantos tickets como m³ ocupa (redondeado hacia arriba) y además debe respetar el peso por eje
+     del vehículo (capacidad en kg = ejes × peso máximo por eje, política POL-05).
+   - CARGA: el cliente digita las dimensiones (largo × ancho × alto) y el peso de su bulto y la cantidad.
    - EXPRESS: exclusivo de una sola carga; reserva todo el contenedor a tarifa fija.
    ============================================================ */
 
@@ -27,27 +29,27 @@ function seed(){
   return {
     /* ---------- PARÁMETROS (solo tipos) ---------- */
     tiposVehiculo:[                            // categorías generales con sus características estándar
-      {id:'TV-001', nombre:'Camión',    ejes:2, cargaMax:5500,  consumo:5},
-      {id:'TV-002', nombre:'Furgoneta', ejes:2, cargaMax:10000, consumo:10},
-      {id:'TV-003', nombre:'Cisterna',  ejes:3, cargaMax:10000, consumo:16},
-      {id:'TV-004', nombre:'Blindado',  ejes:3, cargaMax:7000,  consumo:14}
+      {id:'TV-001', nombre:'Camión',    ejes:2, consumo:5},
+      {id:'TV-002', nombre:'Furgoneta', ejes:2, consumo:10},
+      {id:'TV-003', nombre:'Cisterna',  ejes:3, consumo:16},
+      {id:'TV-004', nombre:'Blindado',  ejes:3, consumo:14}
     ],
-    cargas:[                                   // "Tipo de carga": volumen y peso POR UNIDAD (bulto)
-      {id:'CG-001', material:'Perecible',   volumen:0.5, peso:60,  temp:'−12 °C'},
-      {id:'CG-002', material:'Frágil',      volumen:1,   peso:80,  temp:'15 °C'},
-      {id:'CG-003', material:'Gas',         volumen:1.5, peso:350, temp:'0 °C'},
-      {id:'CG-004', material:'Radioactivo', volumen:2,   peso:500, temp:'45 °C'},
-      {id:'CG-005', material:'Abarrotes',   volumen:0.4, peso:120, temp:'ambiente'},
-      {id:'CG-006', material:'Medicamentos',volumen:0.05,peso:8,   temp:'2 a 8 °C'},
-      {id:'CG-007', material:'Dinero en efectivo', volumen:0.05, peso:25, temp:'ambiente'}
+    cargas:[                                   // "Tipo de carga": solo código y material (las dimensiones las digita el cliente)
+      {id:'CG-001', material:'Perecible'},
+      {id:'CG-002', material:'Frágil'},
+      {id:'CG-003', material:'Gas'},
+      {id:'CG-004', material:'Radioactivo'},
+      {id:'CG-005', material:'Abarrotes'},
+      {id:'CG-006', material:'Medicamentos'},
+      {id:'CG-007', material:'Dinero en efectivo'}
     ],
-    tiposContenedor:[                          // tickets = m³ (1 ticket = 1 m³)
-      {id:'TC-001', nombre:'Freezer',     material:'MC-1', tickets:36, cargaMax:4500, temp:'−20 / 10 °C'},
-      {id:'TC-002', nombre:'Anti-shock',  material:'MC-2', tickets:60, cargaMax:8000, temp:'ambiente'},
-      {id:'TC-003', nombre:'Hermético',   material:'MC-3', tickets:30, cargaMax:6000, temp:'−10 / 5 °C'},
-      {id:'TC-004', nombre:'Blindado',    material:'MC-4', tickets:10, cargaMax:4000, temp:'ambiente'},
-      {id:'TC-005', nombre:'Seco',        material:'MC-5', tickets:48, cargaMax:9000, temp:'ambiente'},
-      {id:'TC-006', nombre:'Refrigerado', material:'MC-6', tickets:24, cargaMax:3500, temp:'2 / 8 °C'}
+    tiposContenedor:[                          // el volumen (m³) es de cada contenedor de la flota
+      {id:'TC-001', nombre:'Freezer',     material:'MC-1', temp:'−20 / 10 °C'},
+      {id:'TC-002', nombre:'Anti-shock',  material:'MC-2', temp:'ambiente'},
+      {id:'TC-003', nombre:'Hermético',   material:'MC-3', temp:'−10 / 5 °C'},
+      {id:'TC-004', nombre:'Blindado',    material:'MC-4', temp:'ambiente'},
+      {id:'TC-005', nombre:'Seco',        material:'MC-5', temp:'ambiente'},
+      {id:'TC-006', nombre:'Refrigerado', material:'MC-6', temp:'2 / 8 °C'}
     ],
     alcances:[
       {id:'AL-001', origen:'Lima',     destino:'Chiclayo', via:'Asfaltada',      paradas:'Huacho, Trujillo', km:768,  horas:12},
@@ -104,18 +106,18 @@ function seed(){
       {id:'r-veh-009', placa:'NPQ345', tipo:'TV-001', estado:'OK'},
       {id:'r-veh-010', placa:'BLD002', tipo:'TV-004', estado:'OK'}
     ],
-    contenedores:[
-      {id:'r-cont-001', tipo:'TC-001', estado:'OK'},
-      {id:'r-cont-002', tipo:'TC-002', estado:'OK'},
-      {id:'r-cont-003', tipo:'TC-003', estado:'OK'},
-      {id:'r-cont-004', tipo:'TC-004', estado:'MANTENIMIENTO'},
-      {id:'r-cont-005', tipo:'TC-001', estado:'OK'},
-      {id:'r-cont-006', tipo:'TC-005', estado:'OK'},
-      {id:'r-cont-007', tipo:'TC-006', estado:'OK'},
-      {id:'r-cont-008', tipo:'TC-004', estado:'OK'},
-      {id:'r-cont-009', tipo:'TC-003', estado:'OK'},
-      {id:'r-cont-010', tipo:'TC-002', estado:'OK'},
-      {id:'r-cont-011', tipo:'TC-004', estado:'OK'}
+    contenedores:[                             // vol = m³ del contenedor (1 ticket = 1 m³)
+      {id:'r-cont-001', tipo:'TC-001', vol:36, estado:'OK'},
+      {id:'r-cont-002', tipo:'TC-002', vol:60, estado:'OK'},
+      {id:'r-cont-003', tipo:'TC-003', vol:30, estado:'OK'},
+      {id:'r-cont-004', tipo:'TC-004', vol:10, estado:'MANTENIMIENTO'},
+      {id:'r-cont-005', tipo:'TC-001', vol:36, estado:'OK'},
+      {id:'r-cont-006', tipo:'TC-005', vol:48, estado:'OK'},
+      {id:'r-cont-007', tipo:'TC-006', vol:24, estado:'OK'},
+      {id:'r-cont-008', tipo:'TC-004', vol:10, estado:'OK'},
+      {id:'r-cont-009', tipo:'TC-003', vol:30, estado:'OK'},
+      {id:'r-cont-010', tipo:'TC-002', vol:60, estado:'OK'},
+      {id:'r-cont-011', tipo:'TC-004', vol:10, estado:'OK'}
     ],
     automatas:[
       {id:'AUT-001', nombre:'Autómata A', tipo:'TA-001', estado:'OK'},
@@ -132,7 +134,7 @@ function seed(){
       {id:'PROT-005', nombre:'Traslado de valores',          secuencia:'Validar ticket y destinatario → Sellar contenedor → Salida → Ruta reservada → Entrega contra firma → Cierre', activacion:'Ticket pagado + contenedor y unidad blindados', version:'v1', activo:true}
     ],
     reglas:[
-      {id:'REG-01', nombre:'Capacidad del viaje',       descripcion:'El ticket solo se genera si el espacio solicitado cabe en tickets (m³) Y en peso (kg).', accion:'Rechazar ticket', activo:true},
+      {id:'REG-01', nombre:'Capacidad del viaje',       descripcion:'El ticket solo se genera si el espacio solicitado cabe en tickets (m³) Y en el peso por eje del vehículo (kg).', accion:'Rechazar ticket', activo:true},
       {id:'REG-02', nombre:'Vencimiento de la reserva', descripcion:'Un ticket reservado que no se paga a tiempo libera su espacio.', accion:'Liberar espacio (batch)', activo:true},
       {id:'REG-03', nombre:'Tipo de unidad del producto', descripcion:'El viaje solo usa un vehículo y un contenedor del tipo que define el producto (y que estén operativos).', accion:'Rechazar asignación', activo:true},
       {id:'REG-04', nombre:'Día de salida',             descripcion:'La fecha del viaje debe coincidir con el día de salida del horario del producto.', accion:'Rechazar fecha', activo:true},
@@ -144,6 +146,7 @@ function seed(){
       {id:'POL-01', nombre:'IGV',                 descripcion:'Porcentaje de IGV aplicado a la estimación del precio.', valor:'18', activo:true},
       {id:'POL-02', nombre:'Reserva de espacio',  descripcion:'Minutos que se mantiene reservado el espacio antes del pago.', valor:'15', activo:true},
       {id:'POL-03', nombre:'Cancelación',         descripcion:'Horas antes de la salida hasta las que se cancela sin cargo.', valor:'24', activo:true},
+      {id:'POL-05', nombre:'Peso máximo por eje',   descripcion:'Kilogramos que soporta cada eje del vehículo. Capacidad del vehículo = N° de ejes × este valor.', valor:'5000', activo:true},
       {id:'POL-04', nombre:'Tolerancia entre pasos', descripcion:'Minutos de tolerancia para confirmar un paso antes de generar un incidente de retraso.', valor:'30', activo:true}
     ],
     tiposIncidente:[
@@ -228,11 +231,15 @@ function ventanaHoras(th){ const d=(DIAS.indexOf(th.diaLlegada)-DIAS.indexOf(th.
 const BASE_TXT = {ticket:'Por espacio comprometido (m³/kg)', fija:'Tarifa fija'};
 
 /* ---------- cálculos del negocio ---------- */
-function espacio(cgId, unidades){
-  const b = by(DB.cargas,cgId); if(!b || !(unidades>0)) return {m3:0,kg:0,n:0};
-  const m3 = r2(b.volumen*unidades);
-  return { m3, kg:r2(b.peso*unidades), n:Math.max(1,Math.ceil(m3-1e-9)) };      // 1 ticket = 1 m³ (mínimo 1)
+/* El cliente digita: bultos (cant), largo/ancho/alto de un bulto en cm y peso de un bulto en kg */
+function espacioDe(d){
+  const c=+d.cant, l=+d.largo, a=+d.ancho, h=+d.alto, p=+d.peso;
+  if(!(c>0 && l>0 && a>0 && h>0 && p>0)) return {m3:0,kg:0,n:0,vb:0};
+  const vb = l*a*h/1e6, m3 = r2(vb*c);
+  return { m3, kg:r2(p*c), n:Math.max(1,Math.ceil(m3-1e-9)), vb:r2(vb) };        // 1 ticket = 1 m³ (mínimo 1)
 }
+const pesoEje = () => +politica('POL-05',5000);
+const capKgVeh = u => (tvDe(u.tipo)||{ejes:0}).ejes*pesoEje();                    // capacidad = ejes × peso máx. por eje
 function reglaActiva(id){ const r = by(DB.reglas,id); return !r || r.activo; }
 function politica(id,def){ const p = by(DB.politicas,id); return p && p.activo ? p.valor : def; }
 
@@ -241,11 +248,20 @@ const esExpress = p => { const s=servicioDe(p); return !!s && s.modalidad==='Exp
 const tarifaDe = p => DB.tarifas.find(t=>t.prod===p.id);
 const tarifaVigente = (t,fecha) => !!t && (fecha||ymd(HOY))>=t.desde && (fecha||ymd(HOY))<=t.hasta;
 
-function viajeCap(v){ const c=tcDe(by(DB.contenedores,v.cont).tipo), u=tvDe(by(DB.vehiculos,v.veh).tipo); return { n:c.tickets, kg:Math.min(c.cargaMax,u.cargaMax) }; }   // capacidad = la del tipo (estándar)
+function viajeCap(v){ const c=by(DB.contenedores,v.cont), u=by(DB.vehiculos,v.veh); return { n:c.vol, kg:capKgVeh(u) }; }   // m³ del contenedor y kg por ejes del vehículo
 function ticketsDe(v){ return DB.tickets.filter(t => t.viaje===v.id && !['VENCIDO','CANCELADO'].includes(t.estado)); }
 function viajeUso(v){ const t=ticketsDe(v); return { n:sum(t,'n'), kg:r2(sum(t,'kg')), m3:r2(sum(t,'m3')) }; }
 function viajeLibre(v){ const c=viajeCap(v), u=viajeUso(v); return { n:c.n-u.n, kg:r2(c.kg-u.kg) }; }
 
+/* estado operativo de una unidad de la flota según los envíos que lleva (campo: 'veh' o 'cont') */
+function unidadEnvio(campo,id){
+  const peso={'EN RUTA':3,'ENTREGADO':2,'RESERVADO':1}; let best=null;
+  DB.viajes.filter(v=>v[campo]===id).forEach(v=>{ const ts=ticketsDe(v).filter(t=>t.estado!=='CERRADO'); if(!ts.length) return;
+    const st=ts.some(t=>t.estado==='EN RUTA')?'EN RUTA':ts.some(t=>t.estado==='ENTREGADO')?'ENTREGADO':'RESERVADO';
+    if(!best||peso[st]>peso[best.st]||(peso[st]===peso[best.st]&&v.fecha<best.v.fecha)) best={v,st}; });
+  if(!best) return {estado:'LIBRE',carga:'—',viaje:null};
+  return {estado:best.st,carga:nomCG(by(DB.productos,best.v.prod).tb),viaje:best.v.id,fecha:best.v.fecha};
+}
 function prodInfo(p){ return { tv:tvDe(p.tv), tc:tcDe(p.tc), tb:by(DB.cargas,p.tb), th:by(DB.horarios,p.th), prot:by(DB.protocolos,p.prot), ts:servicioDe(p), tar:tarifaDe(p) }; }
 function nombreProducto(p){ const i=prodInfo(p); return i.tb.material+' · '+nomTV(p.tv)+' · '+(i.ts?i.ts.modalidad:'—'); }
 
@@ -319,9 +335,10 @@ function verificarEspacio(viaje, esp, prod){
     ok=false; motivo='REG-06: el servicio Express es exclusivo de una sola carga y este viaje ya tiene '+uso.n+' ticket(s) reservados.';
   } else {
     const okN = need<=libre.n, okKg = esp.kg<=libre.kg;
-    if(!okN && !okKg) motivo='Espacio insuficiente en tickets y en peso: solicitas '+need+' ticket(s) / '+n2(esp.kg)+' kg y quedan '+libre.n+' / '+n2(libre.kg)+' kg.';
+    if(express && esp.n>cap.n){ ok=false; motivo='La carga ocupa '+n2(esp.m3)+' m³ ('+esp.n+' ticket(s)) y el contenedor de este viaje tiene solo '+cap.n+' m³.'; return { ok, libre, cap, need, uso, motivo, express }; }
+    if(!okN && !okKg) motivo='Espacio insuficiente en tickets y en peso por eje: solicitas '+need+' ticket(s) / '+n2(esp.kg)+' kg y quedan '+libre.n+' / '+n2(libre.kg)+' kg.';
     else if(!okN) motivo='Espacio insuficiente: solicitas '+need+' ticket(s) ('+n2(esp.m3)+' m³) y solo quedan '+libre.n+' ticket(s).';
-    else if(!okKg) motivo='Peso insuficiente: solicitas '+n2(esp.kg)+' kg y solo quedan '+n2(libre.kg)+' kg.';
+    else if(!okKg) motivo='Peso por eje insuficiente: solicitas '+n2(esp.kg)+' kg y este vehículo ('+(tvDe(by(DB.vehiculos,viaje.veh).tipo)||{}).ejes+' ejes × '+n2(pesoEje())+' kg) solo admite '+n2(libre.kg)+' kg más. Con ese peso se necesitan al menos '+Math.ceil((uso.kg+esp.kg)/pesoEje())+' ejes.';
     ok = !reglaActiva('REG-01') || (okN && okKg);
     if(!ok){}
   }
@@ -331,13 +348,14 @@ function verificarEspacio(viaje, esp, prod){
 /* ---------- tickets iniciales ---------- */
 (function seedTickets(){
   const D = s => new Date('2026-06-24T'+s+':00');
+  const DIM = {'CG-001':[100,50,100,60],'CG-002':[100,100,100,80],'CG-003':[150,100,100,350],'CG-004':[200,100,100,500],'CG-005':[100,80,50,120],'CG-006':[50,40,25,8],'CG-007':[50,40,25,25]};   // largo, ancho, alto (cm), peso (kg) por bulto
   const mk = (id,viaje,cli,cg,uds,estado,paso,creado,hist,extra)=>{
-    const v = by(DB.viajes,viaje), p = by(DB.productos,v.prod), tar = tarifaDe(p), e = espacio(cg,uds);
+    const v = by(DB.viajes,viaje), p = by(DB.productos,v.prod), tar = tarifaDe(p), dm = DIM[cg], e = espacioDe({cant:uds,largo:dm[0],ancho:dm[1],alto:dm[2],peso:dm[3]});
     const n = esExpress(p) ? viajeCap(v).n : e.n, pr = estimarPrecio(tar,n);
-    const t = {id,viaje,cliente:cli,tb:cg,unidades:uds,n,m3:e.m3,kg:e.kg,tarifa:tar.id,sub:pr.sub,igv:pr.igv,total:pr.total,estado,paso,creado,hist:hist||[],
+    const t = {id,viaje,cliente:cli,tb:cg,unidades:uds,dim:{l:dm[0],a:dm[1],h:dm[2],p:dm[3]},n,m3:e.m3,kg:e.kg,tarifa:tar.id,sub:pr.sub,igv:pr.igv,total:pr.total,estado,paso,creado,hist:hist||[],
       medio:null,op:null};
     DB.ordenes++; t.op='OP-'+pad(DB.ordenes,6);
-    if(estado!=='RESERVADO'&&estado!=='VENCIDO') t.medio='tarjeta';
+    if(estado!=='RESERVADO'&&estado!=='VENCIDO'){ t.medio='tarjeta'; t.pagado=creado; }
     DB.tickets.push(t);
   };
   mk('TK-88101','VJ-0001','70112233','CG-001',10,'EN RUTA',3,D('06:20'),[{paso:1,real:D('06:58'),por:'Autómata de carga'},{paso:2,real:D('08:02'),por:'Sistema'},{paso:3,real:D('10:12'),por:'Sistema'}]);

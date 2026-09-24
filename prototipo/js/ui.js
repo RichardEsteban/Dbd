@@ -148,7 +148,7 @@ function crudRows(cfg){ const st=UI.crud[cfg.key]; return DB[cfg.tabla].filter(r
 function crudBody(cfg){
   const st = UI.crud[cfg.key], rows = crudRows(cfg);
   const head = cfg.cols.map(c=>`<th>${esc(c.label)} ▴</th>`).join('');
-  const body = rows.length ? rows.map(r=>`<tr data-act="crud-row" data-key="${cfg.key}" data-id="${esc(r.id)}" class="${st.sel===r.id?'sel':''} ${st.hi===r.id?'hi':''}">${cfg.cols.map(c=>`<td>${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}</tr>`).join('')
+  const body = rows.length ? rows.map(r=>`<tr data-act="crud-row" data-key="${cfg.key}" data-id="${esc(r.id)}" class="${st.sel===r.id?'sel':''} ${st.hi===r.id?'hi':''} ${cfg.rel&&cfg.rel(r)?'rel':''}">${cfg.cols.map(c=>`<td>${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}</tr>`).join('')
     : `<tr><td colspan="${cfg.cols.length}" class="empty">Sin registros. Presione <b>Agregar</b> para crear el primero.</td></tr>`;
   return `${cfg.intro?`<p class="intro">${cfg.intro}</p>`:''}
    <div class="toolbar"><button class="btn" data-act="crud-add" data-key="${cfg.key}">Agregar</button>
@@ -162,7 +162,7 @@ function crudBody(cfg){
 function crudRefresh(key){ const cfg=CRUDS[key]; const el=$('#crud-'+key); if(el) el.innerHTML=crudBody(cfg); }
 
 ACT['crud-search'] = el => { const k=el.dataset.key; UI.crud[k].q=el.value; const pos=el.selectionStart; crudRefresh(k); const n=$('#crud-'+k+' .search'); n.focus(); n.setSelectionRange(pos,pos); };
-ACT['crud-row'] = el => { const k=el.dataset.key; UI.crud[k].sel=el.dataset.id; UI.crud[k].aviso=''; UI.crud[k].hi=null; crudRefresh(k); };
+ACT['crud-row'] = el => { const k=el.dataset.key; UI.crud[k].sel=el.dataset.id; UI.crud[k].aviso=''; UI.crud[k].hi=null; crudRefresh(k); if(typeof onRowSel==='function') onRowSel(k,el.dataset.id); };
 ACT['crud-add'] = el => crudForm(CRUDS[el.dataset.key],null);
 ACT['crud-edit'] = el => { const cfg=CRUDS[el.dataset.key], st=UI.crud[cfg.key];
   const row = DB[cfg.tabla].find(r=>r.id===st.sel);
