@@ -67,15 +67,15 @@ function seed(){
       {id:'AL-015', origen:'Trujillo', destino:'Lima',     via:'Asfaltada',      paradas:'Chimbote, Huacho', km:560,  horas:9}
     ],
     horarios:[
-      {id:'HOR-001', diaSalida:'Lunes',     hSalida:'21:00'},
-      {id:'HOR-002', diaSalida:'Miércoles', hSalida:'08:00'},
-      {id:'HOR-003', diaSalida:'Viernes',   hSalida:'14:00'},
-      {id:'HOR-004', diaSalida:'Domingo',   hSalida:'05:00'},
-      {id:'HOR-005', diaSalida:'Martes',    hSalida:'06:00'},
-      {id:'HOR-006', diaSalida:'Jueves',    hSalida:'07:00'},
-      {id:'HOR-007', diaSalida:'Sábado',    hSalida:'18:00'},
-      {id:'HOR-008', diaSalida:'Lunes',     hSalida:'06:00'},
-      {id:'HOR-009', diaSalida:'Viernes',   hSalida:'05:00'}
+      {id:'HOR-001', diaSalida:'Lunes',     hSalida:'21:00', diaLlegada:'Martes',    hLlegada:'10:00'},
+      {id:'HOR-002', diaSalida:'Miércoles', hSalida:'08:00', diaLlegada:'Miércoles', hLlegada:'20:00'},
+      {id:'HOR-003', diaSalida:'Viernes',   hSalida:'14:00', diaLlegada:'Sábado',    hLlegada:'10:00'},
+      {id:'HOR-004', diaSalida:'Domingo',   hSalida:'05:00', diaLlegada:'Domingo',   hLlegada:'17:00'},
+      {id:'HOR-005', diaSalida:'Martes',    hSalida:'06:00', diaLlegada:'Miércoles', hLlegada:'06:00'},
+      {id:'HOR-006', diaSalida:'Jueves',    hSalida:'07:00', diaLlegada:'Viernes',   hLlegada:'07:00'},
+      {id:'HOR-007', diaSalida:'Sábado',    hSalida:'18:00', diaLlegada:'Domingo',   hLlegada:'18:00'},
+      {id:'HOR-008', diaSalida:'Lunes',     hSalida:'06:00', diaLlegada:'Martes',    hLlegada:'06:00'},
+      {id:'HOR-009', diaSalida:'Viernes',   hSalida:'05:00', diaLlegada:'Sábado',    hLlegada:'05:00'}
     ],
     servicios:[
       {id:'SER-001', nombre:'Perecible económico', modalidad:'Económico', base:'ticket'},
@@ -137,7 +137,8 @@ function seed(){
       {id:'REG-03', nombre:'Tipo de unidad del producto', descripcion:'El viaje solo usa un vehículo y un contenedor del tipo que define el producto (y que estén operativos).', accion:'Rechazar asignación', activo:true},
       {id:'REG-04', nombre:'Día de salida',             descripcion:'La fecha del viaje debe coincidir con el día de salida del horario del producto.', accion:'Rechazar fecha', activo:true},
       {id:'REG-05', nombre:'Orden de los pasos',        descripcion:'Un paso solo se confirma si el anterior ya fue confirmado.', accion:'Bloquear paso', activo:true},
-      {id:'REG-06', nombre:'Express exclusivo',         descripcion:'El servicio Express es exclusivo de una sola carga, cualquiera sea su tipo: reserva todo el contenedor y solo se permite en un viaje sin otros tickets.', accion:'Rechazar reserva', activo:true}
+      {id:'REG-06', nombre:'Express exclusivo',         descripcion:'El servicio Express es exclusivo de una sola carga, cualquiera sea su tipo: reserva todo el contenedor y solo se permite en un viaje sin otros tickets.', accion:'Rechazar reserva', activo:true},
+      {id:'REG-07', nombre:'Ventana del horario',       descripcion:'La duración del alcance debe caber entre la salida y la llegada programadas del horario del producto.', accion:'Rechazar ruta', activo:true}
     ],
     politicas:[
       {id:'POL-01', nombre:'IGV',                 descripcion:'Porcentaje de IGV aplicado a la estimación del precio.', valor:'18', activo:true},
@@ -222,6 +223,8 @@ const addMin = (d,m) => new Date(d.getTime()+m*60000);
 const h12 = t => { const [h,m]=t.split(':').map(Number); return ((h+11)%12+1)+':'+pad(m)+' '+(h<12?'AM':'PM'); };
 const tvDe = id => by(DB.tiposVehiculo,id), tcDe = id => by(DB.tiposContenedor,id), taDe = id => by(DB.tiposAutomata,id);
 const nomTV = id => (tvDe(id)||{nombre:id}).nombre, nomTC = id => (tcDe(id)||{nombre:id}).nombre;
+/* duración en horas de la ventana salida → llegada de un horario */
+function ventanaHoras(th){ const d=(DIAS.indexOf(th.diaLlegada)-DIAS.indexOf(th.diaSalida)+7)%7; const [a,b]=th.hSalida.split(':').map(Number), [c,e]=th.hLlegada.split(':').map(Number); return d*24+((c*60+e)-(a*60+b))/60; }
 const BASE_TXT = {ticket:'Por espacio comprometido (m³/kg)', fija:'Tarifa fija'};
 
 /* ---------- cálculos del negocio ---------- */
@@ -297,6 +300,8 @@ function resolverViaje(prod, alc, fecha){
   const exist = DB.viajes.find(v=>v.prod===prod.id && v.alcance===alc.id && v.fecha===fecha);
   if(exist) return {viaje:exist, nuevo:false};
   if(!alc.km || !alc.horas) return {error:'El alcance '+alc.id+' no tiene distancia ni duración definidas.'};
+  const th = by(DB.horarios,prod.th), vent = ventanaHoras(th);
+  if(reglaActiva('REG-07') && alc.horas>vent) return {error:'REG-07: la ruta '+alc.origen+' → '+alc.destino+' dura '+alc.horas+' h y el horario del producto ('+th.diaSalida+' '+th.hSalida+' → '+th.diaLlegada+' '+th.hLlegada+') solo permite '+n2(vent)+' h. Elija otro producto u horario.'};
   const rig = reglaActiva('REG-03');
   const ocupV = DB.viajes.filter(v=>v.fecha===fecha).map(v=>v.veh), ocupC = DB.viajes.filter(v=>v.fecha===fecha).map(v=>v.cont);
   const veh = DB.vehiculos.find(v=>(!rig||v.tipo===prod.tv) && v.estado==='OK' && !ocupV.includes(v.id));

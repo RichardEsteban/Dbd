@@ -50,6 +50,7 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 ## Definiciones que usa el prototipo
 - **Parámetro** = variable fija que define el producto; solo se mantienen **tipos** (no placas ni estados). Las unidades físicas van en el **Registro de flota**. Tarifas y seguimiento son **reportes**, no parámetros.
 - **Producto** = tipo de vehículo + tipo de carga + horario + protocolo + tipo de servicio (la tarifa sale del reporte).
+- **Horario** = salida y llegada programadas (ventana); la ruta elegida debe caber en esa ventana (REG-07).
 - **Ticket** = espacio comprometido (1 ticket = 1 m³ mínimo, y kg) en el contenedor de una unidad para un viaje en una fecha.
 - **Express** = tarifa fija, reserva todo el contenedor y es exclusivo de una sola carga, cualquiera sea su tipo.
 - **Seguimiento** = secuencia de 7 pasos confirmados por autómatas o por el sistema (sin GPS).

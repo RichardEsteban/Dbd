@@ -7,7 +7,7 @@ const activos = (tabla,lab) => () => DB[tabla].filter(x=>x.activo!==false).map(x
 const todos   = (tabla,lab) => () => DB[tabla].map(x=>[x.id,lab(x)]);
 const nomCG = id => { const x=by(DB.cargas,id); return x?x.material:id; };
 const nomAL = id => { const x=by(DB.alcances,id); return x?x.origen+' → '+x.destino:id; };
-const horTxt = h => 'Sale '+h.diaSalida+' '+h2(h.hSalida);
+const horTxt = h => h.diaSalida+' '+h2(h.hSalida)+' → '+h.diaLlegada+' '+h2(h.hLlegada);
 const h2 = h12;
 const vehDe = v => by(DB.vehiculos,v.veh);
 const estOpts = () => [['OK','OK'],['MANTENIMIENTO','MANTENIMIENTO']];
@@ -106,9 +106,10 @@ const PARAM_CFG = {
     validate:v=>v.origen&&v.destino&&v.origen.toLowerCase()===v.destino.toLowerCase()?{destino:'El destino no puede ser igual al origen'}:{},
     used:r=>DB.viajes.filter(v=>v.alcance===r.id).map(v=>'Viaje '+v.id)},
   hor:{key:'hor',tabla:'horarios',label:'Horario',prefix:'HOR-',padLen:3,canDisable:false,
-    cols:[{label:'Código',k:'id'},{label:'Día salida',k:'diaSalida'},{label:'Hora salida',f:r=>h2(r.hSalida)}],
-    fields:[{k:'diaSalida',label:'Día de salida',type:'select',opts:()=>DIAS.map(d=>[d,d]),req:1},{k:'hSalida',label:'Hora de salida',type:'time',req:1}],
-    validate:(v,row)=>{ const e={}; const dup=DB.horarios.find(h=>h!==row&&h.diaSalida===v.diaSalida&&h.hSalida===v.hSalida); if(dup) e.hSalida='Ya existe un horario '+v.diaSalida+' '+h2(v.hSalida)+' ('+dup.id+')'; return e; },
+    cols:[{label:'Código',k:'id'},{label:'Día salida',k:'diaSalida'},{label:'Hora salida',f:r=>h2(r.hSalida)},{label:'Día llegada',k:'diaLlegada'},{label:'Hora llegada',f:r=>h2(r.hLlegada)},{label:'Ventana',f:r=>n2(ventanaHoras(r))+' h'}],
+    fields:[{k:'diaSalida',label:'Día de salida',type:'select',opts:()=>DIAS.map(d=>[d,d]),req:1},{k:'hSalida',label:'Hora de salida',type:'time',req:1},{k:'diaLlegada',label:'Día de llegada',type:'select',opts:()=>DIAS.map(d=>[d,d]),req:1},{k:'hLlegada',label:'Hora de llegada',type:'time',req:1,help:'Llegada programada: tiempo máximo que permite este horario.'}],
+    validate:(v,row)=>{ const e={}; const dup=DB.horarios.find(h=>h!==row&&h.diaSalida===v.diaSalida&&h.hSalida===v.hSalida); if(dup) e.hSalida='Ya existe un horario '+v.diaSalida+' '+h2(v.hSalida)+' ('+dup.id+')';
+      if(v.diaSalida&&v.diaSalida===v.diaLlegada&&v.hLlegada&&v.hSalida&&v.hLlegada<=v.hSalida) e.hLlegada='La llegada debe ser posterior a la salida'; return e; },
     used:r=>DB.productos.filter(p=>p.th===r.id).map(p=>'Producto '+p.id)},
   ser:{key:'ser',tabla:'servicios',label:'Tipo de servicio',prefix:'SER-',padLen:3,canDisable:false,
     cols:[{label:'Código',k:'id'},{label:'Servicio',k:'nombre'},{label:'Modalidad',k:'modalidad'},{label:'Base de cobro',f:r=>BASE_TXT[r.base]}],
@@ -127,7 +128,7 @@ const INFO = {
   tc:'Un ticket equivale a ocupar el espacio mínimo de 1 m³ dentro de un contenedor. Por eso el “N° máx. de tickets” es igual a los m³ del tipo de contenedor. Los contenedores físicos se registran en la flota.',
   car:'El estado indica si hay envíos de este tipo de carga EN RUTA o ya ENTREGADOS. Mientras haya carga en ruta, el registro no se puede editar ni eliminar.',
   ser:'Económico: se cobra por espacio comprometido (tickets). Express: tarifa fija por la reserva exclusiva de todo el contenedor; es exclusivo de una sola carga, cualquiera sea su tipo.',
-  hor:'El horario define solo la salida (día y hora). La llegada estimada se calcula sumando la duración del Alcance elegido, así no hay dos fuentes que se contradigan.',
+  hor:'El horario fija la salida y la llegada programada: es la ventana en la que debe viajar el producto. La llegada estimada de cada envío es la salida más la duración del Alcance, y debe caber en esa ventana (REG-07).',
   al:'La duración del alcance se usa para calcular la hora esperada de cada paso del seguimiento, sin depender de un GPS.',
   ta:'Los autómatas físicos se registran en la flota. Cada paso del envío que lo confirma un autómata exige uno de este tipo, disponible.'
 };
