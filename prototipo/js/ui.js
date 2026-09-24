@@ -114,7 +114,7 @@ function render(){
   const R = ROUTES[cur.key] || ROUTES['login'];
   const app = $('#app');
   if(cur.key==='login'||cur.key==='registro'){ app.className='login-mode'; app.innerHTML=R.view(cur.arg); return; }
-  if(cur.key.startsWith('p-')){ app.className='portal'; app.innerHTML = portalShell(cur, R.view(cur.arg)); if(R.after) R.after(cur.arg); window.scrollTo(0,0); return; }
+  if(cur.key.startsWith('p-')){ app.className='wf-mode'; app.innerHTML = portalLayout(cur, R.view(cur.arg)); if(R.after) R.after(cur.arg); window.scrollTo(0,0); return; }
   app.className='wf-mode';
   app.innerHTML = `<header class="top"><div class="brand">🚚 <b>Transporte Seguro</b> <small>prototipo</small></div>
      <div class="who">${ROLES[SESSION.role].label} <a href="#/p-catalogo" class="lnk">Ver portal del cliente ↗</a> <a href="#/login" class="lnk">Cambiar de perfil</a></div></header>

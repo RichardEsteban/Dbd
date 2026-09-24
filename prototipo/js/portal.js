@@ -3,10 +3,15 @@
    ============================================================ */
 let PCLI = '70112233';                         // cliente con sesión iniciada (cambia al iniciar sesión)
 const ICON = {'CG-001':'🧊','CG-002':'🥚','CG-003':'📦','CG-004':'🛢️'};
-function portalShell(cur,inner){
-  const L=[['p-catalogo','Catálogo'],['p-cotizar','Cotizar'],['p-rastrear','Rastrear envío'],['p-envios','Mis envíos']];
-  const back = SESSION.role!=='cliente' ? `<a class="pback" href="#/${HOME[SESSION.role]}">← Volver al sistema interno</a>` : `<a class="pback" href="#/login">Salir</a>`;
-  return `<header class="pnav"><div class="pbrand"><span class="pico">🚚</span> Transporte Seguro</div><nav>${L.map(([k,l])=>`<a href="#/${k}" class="${cur.key===k||(k==='p-cotizar'&&cur.key==='p-pago')?'on':''}">${l}</a>`).join('')}</nav><div class="puser"><span class="pav">👤</span> ${esc(by(DB.clientes,PCLI).nombre)} ${back}</div></header><main class="pmain">${inner}</main><footer class="pfoot">Prototipo · sin base de datos · los datos viven en memoria</footer>`;
+const PORTAL_NAV=[['p-catalogo','Catálogo de servicios'],['p-cotizar','Cotizar envío'],['p-rastrear','Rastrear envío'],['p-envios','Mis envíos']];
+function portalLayout(cur,inner){
+  const cli=by(DB.clientes,PCLI), interno=SESSION.role!=='cliente';
+  const nav=PORTAL_NAV.map(([k,l],i)=>`<a class="tl d1 link ${cur.key===k||(k==='p-cotizar'&&cur.key==='p-pago')?'active':''}" href="#/${k}"><span class="num">${i+1}</span>${l}</a>`).join('');
+  const crumb='Portal del cliente › '+((PORTAL_NAV.find(x=>x[0]===cur.key)||[0,cur.key==='p-pago'?'Pago del envío':''])[1]);
+  return `<header class="top"><div class="brand">🚚 <b>Transporte Seguro</b> <small>portal del cliente</small></div>
+     <div class="who">${esc(cli?cli.nombre:'')} ${interno?`<a href="#/${HOME[SESSION.role]}" class="lnk">← Volver al sistema interno</a>`:''} <a href="#/login" class="lnk">Salir</a></div></header>
+     <nav class="side"><div class="tg"><div class="tl d0">Portal del cliente</div>${nav}</div><div class="legend">Reserva espacio en un contenedor (1 ticket = 1 m³), paga en línea y sigue tu envío por sus 7 pasos.</div></nav>
+     <main class="main"><div class="crumb">${crumb}</div>${inner}<footer class="crumb" style="margin-top:40px">Prototipo · sin base de datos · los datos viven en memoria</footer></main>`;
 }
 const precioDe = p => { const t=tarifaDe(p); if(!t) return ''; return t.base==='fija'?money(t.valor)+' por envío exclusivo':money(t.valor)+' por ticket (1 m³)'; };
 route('p-catalogo',{title:'',view(){
