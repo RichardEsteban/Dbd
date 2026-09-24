@@ -386,6 +386,7 @@ function payDoneHTML(t,ctx){
 const reservaVencida = t => t.estado==='RESERVADO' && addMin(t.creado,+politica('POL-02',15))<=AHORA;
 const vencidoHTML = t => `<div class="paydone"><div class="pdico" style="background:#fde8e8;color:#c0392b">⏱</div><h3>La reserva venció</h3><p>El ticket <b>${t.id}</b> no se pagó dentro de los ${politica('POL-02',15)} minutos y el espacio se liberó (REG-02).</p><p>Genere una nueva reserva para volver a comprometer el espacio.</p></div>`;
 function pagar(t,m){
+  if(SESSION.role==='supervisor'){ toast('✖ El supervisor solo consulta: el pago lo realiza el cliente','bad'); return false; }
   if(t.estado==='PAGADO') return true;
   if(reservaVencida(t)||t.estado==='VENCIDO'){ t.estado='VENCIDO'; toast('⏱ La reserva '+t.id+' venció: el espacio fue liberado','bad'); return false; }
   if(t.estado!=='RESERVADO'){ toast('✖ El ticket '+t.id+' está '+t.estado+' y no admite pago','bad'); return false; }
@@ -469,7 +470,9 @@ function segBody(t){
   const rows=seq.pasos.map(n=>{ const ps=by(PASOS,n,'n'), e=estadoPaso(v,t,n); const cur=n===nx;
     return `<tr class="${cur?'sel':''}"><td class="c"><b>${n}</b></td><td>${ps.nombre}<br><small>${ps.desc}</small></td><td>${ps.por}</td><td>${hhmm(e.esp)}</td><td>${e.h?hhmm(e.h.real)+' <small>('+(e.dif>0?'+':'')+e.dif+' min)</small><br><small>'+esc(e.h.por)+'</small>':'—'}</td><td>${e.est?pill(e.est):cur?'<span class="pill warn">SIGUIENTE</span>':'<span class="pill mute">PENDIENTE</span>'}</td></tr>`; }).join('');
   let acc='';
-  if(t.estado==='RESERVADO') acc=msg('warn','⚠ El ticket está <b>RESERVADO</b>: debe pagarse para iniciar el traslado. <a class="btn okb" href="#/ticket/5" data-act="seg-topay" data-id="'+t.id+'">💳 Ir al pago</a>');
+  if(t.estado==='RESERVADO') acc=SESSION.role==='supervisor'
+    ? msg('warn','⏳ El ticket está <b>RESERVADO</b>: espera el pago del cliente para iniciar el traslado. El supervisor solo puede consultarlo.')
+    : msg('warn','⚠ El ticket está <b>RESERVADO</b>: debe pagarse para iniciar el traslado. <a class="btn okb" href="#/ticket/5" data-act="seg-topay" data-id="'+t.id+'">💳 Ir al pago</a>');
   else if(['VENCIDO','CANCELADO'].includes(t.estado)) acc=msg('bad','Ticket '+t.estado+': el espacio fue liberado.');
   else if(nx && SESSION.role==='supervisor') acc=msg('info','Vista de solo lectura: los pasos los confirman los autómatas y el sistema. Siguiente paso: <b>'+nx+' '+by(PASOS,nx,'n').nombre+'</b>.');
   else if(nx) acc=`<div class="actions"><button class="btn okb" data-act="seg-confirm" data-id="${t.id}" data-late="0">▶ Simular paso ${nx} (${by(PASOS,nx,'n').nombre}) a tiempo</button> <button class="btn warnb" data-act="seg-confirm" data-id="${t.id}" data-late="1">⏱ Simular paso ${nx} con retraso (+45 min)</button><small> En producción lo confirma solo: ${by(PASOS,nx,'n').por}.</small></div>`;
