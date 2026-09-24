@@ -92,7 +92,7 @@ function msg(kind,html){ return `<div class="msg ${kind}">${html}</div>`; }
 /* ---------------- modal ---------------- */
 function openModal(title,body,actions=[],opts={}){
   UI.modalActions = actions;
-  $('#modal-root').innerHTML = `<div class="ov" data-act="modal-bg"><div class="modal ${opts.wide?'wide':''} ${opts.kind||''}" role="dialog" onclick="event.stopPropagation()">
+  $('#modal-root').innerHTML = `<div class="ov" data-act="modal-bg"><div class="modal ${opts.wide?'wide':''} ${opts.kind||''}" role="dialog">
     <div class="mh"><b>${title}</b><span class="x" data-act="modal-close">✕</span></div><div class="mb">${body}</div>
     <div class="mf">${actions.map((a,i)=>`<button class="btn ${a.cls||''}" data-act="modal-action" data-i="${i}">${a.label}</button>`).join('')}</div></div></div>`;
   const f=$('#modal-root input,#modal-root select,#modal-root textarea'); if(f&&!opts.noFocus) f.focus();
@@ -108,12 +108,12 @@ function parseHash(){ const h=(location.hash||'#/').slice(2); const [key,...rest
 function go(path){ location.hash = '#/'+path; }
 function render(){
   const cur = parseHash();
-  if(!SESSION.role && cur.key!=='login'){ go('login'); return; }
-  if(SESSION.role==='cliente' && !cur.key.startsWith('p-') && cur.key!=='login'){ go('p-catalogo'); return; }
+  if(!SESSION.role && cur.key!=='login' && cur.key!=='registro'){ go('login'); return; }
+  if(SESSION.role==='cliente' && !cur.key.startsWith('p-') && cur.key!=='login' && cur.key!=='registro'){ go('p-catalogo'); return; }
   if(SESSION.role && SESSION.role!=='cliente' && cur.key.startsWith('p-')){ /* portal accesible en demo */ }
   const R = ROUTES[cur.key] || ROUTES['login'];
   const app = $('#app');
-  if(cur.key==='login'){ app.className='login-mode'; app.innerHTML=R.view(cur.arg); return; }
+  if(cur.key==='login'||cur.key==='registro'){ app.className='login-mode'; app.innerHTML=R.view(cur.arg); return; }
   if(cur.key.startsWith('p-')){ app.className='portal'; app.innerHTML = portalShell(cur, R.view(cur.arg)); if(R.after) R.after(cur.arg); window.scrollTo(0,0); return; }
   app.className='wf-mode';
   app.innerHTML = `<header class="top"><div class="brand">🚚 <b>Transporte Seguro</b> <small>prototipo</small></div>

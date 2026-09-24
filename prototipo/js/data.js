@@ -32,10 +32,10 @@ function seed(){
       {id:'r-veh-004', placa:'DEF890', tipo:'Furgoneta', ejes:2, cargaMax:8000,  consumo:8,  estado:'MANTENIMIENTO'}
     ],
     cargas:[                                   // "Tipo de carga": volumen y peso POR UNIDAD (bulto)
-      {id:'CG-001', material:'Perecible',   volumen:0.5, peso:0.5, temp:'−12 °C'},
-      {id:'CG-002', material:'Frágil',      volumen:1,   peso:1,   temp:'15 °C'},
-      {id:'CG-003', material:'Gas',         volumen:1.5, peso:1.5, temp:'0 °C'},
-      {id:'CG-004', material:'Radioactivo', volumen:2,   peso:2,   temp:'45 °C'}
+      {id:'CG-001', material:'Perecible',   volumen:0.5, peso:60,  temp:'−12 °C'},
+      {id:'CG-002', material:'Frágil',      volumen:1,   peso:80,  temp:'15 °C'},
+      {id:'CG-003', material:'Gas',         volumen:1.5, peso:350, temp:'0 °C'},
+      {id:'CG-004', material:'Radioactivo', volumen:2,   peso:500, temp:'45 °C'}
     ],
     contenedores:[                             // tickets = m³ (1 ticket = 1 m³)
       {id:'r-cont-001', tipo:'Freezer',    material:'MC-1', tickets:36, cargaMax:4500, temp:'−20 / 10 °C', estado:'OK'},
@@ -50,10 +50,10 @@ function seed(){
       {id:'AL-004', origen:'Lima',     destino:'Loreto',   via:'Fluvial',        paradas:'—',                km:null, horas:null}
     ],
     horarios:[
-      {id:'HOR-001', diaSalida:'Lunes',     hSalida:'21:00', diaLlegada:'Martes',    hLlegada:'10:00'},
-      {id:'HOR-002', diaSalida:'Miércoles', hSalida:'08:00', diaLlegada:'Miércoles', hLlegada:'20:00'},
-      {id:'HOR-003', diaSalida:'Viernes',   hSalida:'14:00', diaLlegada:'Sábado',    hLlegada:'10:00'},
-      {id:'HOR-004', diaSalida:'Domingo',   hSalida:'05:00', diaLlegada:'Domingo',   hLlegada:'17:00'}
+      {id:'HOR-001', diaSalida:'Lunes',     hSalida:'21:00'},
+      {id:'HOR-002', diaSalida:'Miércoles', hSalida:'08:00'},
+      {id:'HOR-003', diaSalida:'Viernes',   hSalida:'14:00'},
+      {id:'HOR-004', diaSalida:'Domingo',   hSalida:'05:00'}
     ],
     servicios:[
       {id:'SER-001', nombre:'Perecible económico', modalidad:'Económico', base:'ticket'},
@@ -114,9 +114,16 @@ function seed(){
       {id:'TAR-004', prod:'PROD04', modalidad:'Express',   base:'fija',   valor:480, desde:'2026-01-01', hasta:'2026-05-31'}
     ],
     clientes:[
-      {id:'70112233',    nombre:'Juan Ramos',          tipo:'Persona', tel:'987 654 321', email:'juan.ramos@mail.com'},
-      {id:'20601234567', nombre:'Comercial Norte SAC', tipo:'Empresa', tel:'014 456 789', email:'compras@comercialnorte.pe'},
-      {id:'45871236',    nombre:'María Vera',          tipo:'Persona', tel:'955 123 456', email:'maria.vera@mail.com'}
+      {id:'70112233',    clave:'123456', nombre:'Juan Ramos',          tipo:'Persona', tel:'987 654 321', email:'juan.ramos@mail.com'},
+      {id:'20601234567', clave:'123456', nombre:'Comercial Norte SAC', tipo:'Empresa', tel:'014 456 789', email:'compras@comercialnorte.pe'},
+      {id:'45871236',    clave:'123456', nombre:'María Vera',          tipo:'Persona', tel:'955 123 456', email:'maria.vera@mail.com'}
+    ],
+    /* ---------- CUENTAS DEL PERSONAL (el cliente entra con su propia cuenta) ---------- */
+    usuarios:[
+      {dni:'40000000', clave:'123456', nombre:'Modo demostración', rol:'demo'},
+      {dni:'40000001', clave:'123456', nombre:'Ana Torres',        rol:'gerente'},
+      {dni:'40000002', clave:'123456', nombre:'Luis Paredes',      rol:'supervisor'},
+      {dni:'40000003', clave:'123456', nombre:'Rosa Medina',       rol:'admin'}
     ],
     /* ---------- OPERACIÓN (cambia con cada envío) ---------- */
     viajes:[
@@ -199,6 +206,20 @@ function proximasFechas(dia, n=3){
   while(out.length<n){ if(DIAS[d.getDay()]===dia && d>=new Date('2026-06-24T00:00:00')) out.push(ymd(d)); d.setDate(d.getDate()+1); }
   return out;
 }
+
+/* Origen y destino los escribe el cliente (texto libre): el sistema los cruza con el parámetro Alcance */
+const norm = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
+const lugares = () => [...new Set(DB.alcances.filter(a=>a.km&&a.horas).flatMap(a=>[a.origen,a.destino]))];
+function buscarAlcance(o,d){
+  if(!norm(o)||!norm(d)) return {};
+  if(norm(o)===norm(d)) return {error:'El origen y el destino no pueden ser el mismo lugar.'};
+  const a = DB.alcances.find(x=>norm(x.origen)===norm(o)&&norm(x.destino)===norm(d));
+  const rutas = DB.alcances.filter(x=>x.km&&x.horas).map(x=>x.origen+' → '+x.destino).join(', ');
+  if(!a) return {error:'Aún no operamos la ruta '+o.trim()+' → '+d.trim()+'. Rutas disponibles: '+rutas+'.'};
+  if(!a.km||!a.horas) return {error:'La ruta '+a.origen+' → '+a.destino+' todavía no tiene distancia ni duración definidas. Rutas disponibles: '+rutas+'.'};
+  return {alcance:a};
+}
+function syncRuta(d){ const r=buscarAlcance(d.origen,d.destino); d.alc=r.alcance?r.alcance.id:''; d.rutaErr=r.error||''; if(r.alcance){ d.origen=r.alcance.origen; d.destino=r.alcance.destino; } }
 
 /* Busca (o propone) el viaje de un producto/alcance/fecha con unidad y contenedor compatibles y libres */
 function resolverViaje(prod, alc, fecha){

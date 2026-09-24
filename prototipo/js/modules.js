@@ -7,7 +7,7 @@ const activos = (tabla,lab) => () => DB[tabla].filter(x=>x.activo!==false).map(x
 const todos   = (tabla,lab) => () => DB[tabla].map(x=>[x.id,lab(x)]);
 const nomCG = id => { const x=by(DB.cargas,id); return x?x.material:id; };
 const nomAL = id => { const x=by(DB.alcances,id); return x?x.origen+' → '+x.destino:id; };
-const horTxt = h => h.diaSalida+' '+h2(h.hSalida)+' → '+h.diaLlegada+' '+h2(h.hLlegada);
+const horTxt = h => 'Sale '+h.diaSalida+' '+h2(h.hSalida);
 const h2 = h12;
 const vehDe = v => by(DB.vehiculos,v.veh);
 const estOpts = () => [['OK','OK'],['MANTENIMIENTO','MANTENIMIENTO']];
@@ -15,22 +15,58 @@ const tiposContenedor = () => [...new Set(DB.contenedores.map(c=>c.tipo))];
 
 /* ---------------------------------------------------------------- SEGURIDAD / LOGIN */
 route('login',{title:'',view(){
-  const roles = Object.entries(ROLES).map(([k,r])=>`<label class="rolecard"><input type="radio" name="rol" value="${k}" ${k==='demo'?'checked':''}><b>${r.label}</b><small>${r.desc}</small></label>`).join('');
+  const cuentas=[...DB.usuarios.map(u=>[u.dni,u.clave,u.nombre,ROLES[u.rol].label]),...DB.clientes.slice(0,2).map(c=>[c.id,c.clave,c.nombre,'Cliente (portal)'])]
+    .map(([d,p,n,r])=>`<a class="rolecard acc" href="javascript:void(0)" data-act="lg-fill" data-dni="${d}" data-pw="${p}"><b>${esc(n)}</b><small>${r} · ${d}</small></a>`).join('');
   return `<div class="login"><div class="win"><div class="bar-w"><span class="dots">● ● ●</span><span class="url">https://www.transporteexpress.com.pe/login</span></div>
    <div class="win-b"><h2 class="c">Bienvenido a Transporte Seguro</h2>
    <div class="lgrid"><div><div class="logo">🚚 LOGO</div>
-     <label class="fld"><span>DNI</span><input id="lg-dni" value="45123987"></label>
-     <label class="fld"><span>Contraseña</span><input id="lg-pw" type="password" value="123456"></label>
+     <form data-submit="login" id="lgform"><label class="fld ${UI.loginErr?'err':''}"><span>DNI o RUC</span><input id="lg-dni" name="dni" value="${esc(UI.loginDni||'')}" autocomplete="off"></label>
+     <label class="fld ${UI.loginErr?'err':''}"><span>Contraseña</span><input id="lg-pw" name="pw" type="password">${UI.loginErr?`<em>✖ ${esc(UI.loginErr)}</em>`:''}</label>
      <label class="chk"><input type="checkbox" data-change="show-pw"> Mostrar contraseña</label>
-     <div class="rolebox"><b>Perfil para la demostración</b>${roles}</div>
-     <button class="btn okb big" data-act="login">Iniciar sesión</button> <small class="lnk">¿Olvidaste tu contraseña?</small></div>
+     <button class="btn okb big">Iniciar sesión</button> <a class="lnk" href="#/registro">Crear cuenta de cliente</a></form>
+     <div class="rolebox"><b>Cuentas de demostración</b> <small>(clic para autocompletar; clave 123456)</small>${cuentas}</div></div>
     <div class="sep"></div>
-    <div class="qrbox"><b>Ingresa por QR</b><div class="qr" data-act="login-qr" title="Simular escaneo"></div><small>Autenticación adicional: el operario escanea el QR desde la app móvil. Haga clic en el código para simular el escaneo.</small></div></div>
+    <div class="qrbox"><b>Ingresa por QR</b><div class="qr" data-act="login-qr" title="Simular escaneo"></div><small>Autenticación adicional: escanee el QR desde la app móvil. Escriba primero su DNI y haga clic en el código para simular el escaneo.</small></div></div>
    </div></div></div>`; }});
 const HOME = {demo:'parametros',gerente:'parametros',supervisor:'disponibilidad',admin:'batch-bd',cliente:'p-catalogo'};
-function doLogin(via){ const r=document.querySelector('input[name=rol]:checked'); SESSION.role=r?r.value:'demo'; toast('✔ Sesión iniciada como <b>'+ROLES[SESSION.role].label+'</b>'+(via?' (autenticación por QR)':'')); go(HOME[SESSION.role]); }
-ACT['login']=()=>doLogin(false); ACT['login-qr']=()=>doLogin(true);
+function autenticar(dni,pw,porQR){
+  dni=String(dni||'').trim(); if(!dni) return {error:'Ingrese su DNI o RUC.'};
+  const u=DB.usuarios.find(x=>x.dni===dni), c=DB.clientes.find(x=>x.id===dni), cuenta=u||c;
+  if(!cuenta) return {error:'No existe una cuenta con ese DNI o RUC. Puede crearla como cliente.'};
+  if(!porQR && !pw) return {error:'Ingrese su contraseña.'};
+  if(!porQR && cuenta.clave!==pw) return {error:'Contraseña incorrecta.'};
+  return u?{role:u.rol,nombre:u.nombre}:{role:'cliente',cliente:c,nombre:c.nombre};
+}
+function iniciarSesion(r,via){
+  SESSION.role=r.role; if(r.cliente) PCLI=r.cliente.id; UI.pd=null; UI.draft=null; UI.loginErr=''; UI.loginDni='';
+  toast('✔ Sesión iniciada: <b>'+esc(r.nombre)+'</b> ('+ROLES[r.role].label+')'+(via?' · verificado por QR':'')); go(HOME[r.role]); }
+ACT['login']=f=>{ const fd=new FormData(f); UI.loginDni=String(fd.get('dni')||'').trim(); const r=autenticar(UI.loginDni,fd.get('pw'),false);
+  if(r.error){ UI.loginErr=r.error; render(); return; } iniciarSesion(r,false); };
+ACT['login-qr']=()=>{ const dni=$('#lg-dni').value; const r=autenticar(dni,'',true); if(r.error){ UI.loginDni=dni; UI.loginErr=r.error; render(); return; } iniciarSesion(r,true); };
+ACT['lg-fill']=el=>{ $('#lg-dni').value=el.dataset.dni; $('#lg-pw').value=el.dataset.pw; UI.loginErr=''; };
 ACT['show-pw']=el=>{ $('#lg-pw').type=el.checked?'text':'password'; };
+
+/* registro propio del cliente (autoservicio) */
+UI.reg={vals:{},errs:{}};
+route('registro',{title:'',view(){
+  const v=UI.reg.vals, e=UI.reg.errs;
+  const F=(k,label,ph,type='text')=>`<label class="fld ${e[k]?'err':''}"><span>${label}</span><input name="${k}" type="${type}" value="${type==='password'?'':esc(v[k]||'')}" placeholder="${ph||''}" autocomplete="off">${e[k]?`<em>✖ ${esc(e[k])}</em>`:''}</label>`;
+  return `<div class="login"><div class="win"><div class="bar-w"><span class="dots">● ● ●</span><span class="url">https://www.transporteexpress.com.pe/registro</span></div>
+   <div class="win-b"><h2 class="c">Crear cuenta de cliente</h2>
+   <form data-submit="reg-save"><div class="fgrid">${F('id','DNI (8 dígitos) o RUC (11)','70112233')}
+    <label class="fld ${e.tipo?'err':''}"><span>Tipo</span><select name="tipo">${optsHTML([['Persona','Persona'],['Empresa','Empresa']],v.tipo||'',true)}</select>${e.tipo?`<em>✖ ${esc(e.tipo)}</em>`:''}</label>
+    ${F('nombre','Nombre o razón social')}${F('tel','Teléfono','987 654 321')}${F('email','Correo','nombre@correo.com')}${F('clave','Contraseña (mínimo 6)','','password')}${F('clave2','Repetir contraseña','','password')}</div>
+    <div class="nav"><a class="btn" href="#/login">← Volver</a><button class="btn okb big">Crear cuenta e ingresar</button></div></form>
+   </div></div></div>`; }});
+ACT['reg-save']=f=>{ const fd=new FormData(f), v={}; ['id','tipo','nombre','tel','email','clave','clave2'].forEach(k=>v[k]=String(fd.get(k)||'').trim());
+  const e={}; if(!/^\d{8}$|^\d{11}$/.test(v.id)) e.id='El DNI tiene 8 dígitos y el RUC 11'; else if(DB.clientes.some(c=>c.id===v.id)||DB.usuarios.some(u=>u.dni===v.id)) e.id='Ya existe una cuenta con ese documento';
+  if(!v.tipo) e.tipo='Seleccione el tipo'; else if(!e.id){ if(v.id.length===8&&v.tipo!=='Persona') e.tipo='Un DNI corresponde a una persona'; if(v.id.length===11&&v.tipo!=='Empresa') e.tipo='Un RUC corresponde a una empresa'; }
+  if(!v.nombre) e.nombre='Campo obligatorio'; if(!v.tel) e.tel='Campo obligatorio'; if(!/^\S+@\S+\.\S+$/.test(v.email)) e.email='Correo no válido';
+  if(v.clave.length<6) e.clave='Mínimo 6 caracteres'; else if(v.clave!==v.clave2) e.clave2='Las contraseñas no coinciden';
+  UI.reg={vals:v,errs:e}; if(Object.keys(e).length){ render(); return; }
+  const c={id:v.id,clave:v.clave,nombre:v.nombre,tipo:v.tipo,tel:v.tel,email:v.email}; DB.clientes.push(c); UI.reg={vals:{},errs:{}};
+  toast('✔ Cuenta creada'); iniciarSesion({role:'cliente',cliente:c,nombre:c.nombre},false); };
+
 
 route('seguridad',{title:'Acceso y perfiles',crumb:'Seguridad',view(){
   const mods=['Parámetros y catálogos','Consulta de indicadores','Data-entry (lo usa el cliente en el portal)','Reportes','Procesos batch','Backup y restauración'];
@@ -71,10 +107,9 @@ const PARAM_CFG = {
     validate:v=>v.origen&&v.destino&&v.origen.toLowerCase()===v.destino.toLowerCase()?{destino:'El destino no puede ser igual al origen'}:{},
     used:r=>DB.viajes.filter(v=>v.alcance===r.id).map(v=>'Viaje '+v.id)},
   hor:{key:'hor',tabla:'horarios',label:'Horario',prefix:'HOR-',padLen:3,canDisable:false,
-    cols:[{label:'Código',k:'id'},{label:'Día salida',k:'diaSalida'},{label:'Hora salida',f:r=>h2(r.hSalida)},{label:'Día llegada',k:'diaLlegada'},{label:'Hora llegada',f:r=>h2(r.hLlegada)}],
-    fields:[{k:'diaSalida',label:'Día de salida',type:'select',opts:()=>DIAS.map(d=>[d,d]),req:1},{k:'hSalida',label:'Hora de salida',type:'time',req:1},{k:'diaLlegada',label:'Día de llegada',type:'select',opts:()=>DIAS.map(d=>[d,d]),req:1},{k:'hLlegada',label:'Hora de llegada',type:'time',req:1}],
-    validate:(v,row)=>{ const e={}; const dup=DB.horarios.find(h=>h!==row&&h.diaSalida===v.diaSalida&&h.hSalida===v.hSalida); if(dup) e.hSalida='Ya existe un horario '+v.diaSalida+' '+h2(v.hSalida)+' ('+dup.id+')';
-      if(v.diaSalida&&v.diaSalida===v.diaLlegada&&v.hLlegada&&v.hSalida&&v.hLlegada<=v.hSalida) e.hLlegada='La llegada debe ser posterior a la salida'; return e; },
+    cols:[{label:'Código',k:'id'},{label:'Día salida',k:'diaSalida'},{label:'Hora salida',f:r=>h2(r.hSalida)}],
+    fields:[{k:'diaSalida',label:'Día de salida',type:'select',opts:()=>DIAS.map(d=>[d,d]),req:1},{k:'hSalida',label:'Hora de salida',type:'time',req:1}],
+    validate:(v,row)=>{ const e={}; const dup=DB.horarios.find(h=>h!==row&&h.diaSalida===v.diaSalida&&h.hSalida===v.hSalida); if(dup) e.hSalida='Ya existe un horario '+v.diaSalida+' '+h2(v.hSalida)+' ('+dup.id+')'; return e; },
     used:r=>DB.productos.filter(p=>p.th===r.id).map(p=>'Producto '+p.id)},
   ser:{key:'ser',tabla:'servicios',label:'Tipo de servicio',prefix:'SER-',padLen:3,canDisable:false,
     cols:[{label:'Código',k:'id'},{label:'Servicio',k:'nombre'},{label:'Modalidad',k:'modalidad'},{label:'Base de cobro',f:r=>BASE_TXT[r.base]}],
@@ -91,6 +126,7 @@ const INFO = {
   con:'Un ticket equivale a ocupar el espacio mínimo de 1 m³ dentro de un contenedor. Por eso el “N° máx. de tickets” es igual a los m³ del contenedor.',
   car:'El estado indica si hay envíos de este tipo de carga EN RUTA o ya ENTREGADOS. Mientras haya carga en ruta, el registro no se puede editar ni eliminar.',
   ser:'Económico: se cobra por espacio comprometido (tickets). Express: tarifa fija por la reserva exclusiva de todo el contenedor; es exclusivo de una sola carga, cualquiera sea su tipo.',
+  hor:'El horario define solo la salida (día y hora). La llegada estimada se calcula sumando la duración del Alcance elegido, así no hay dos fuentes que se contradigan.',
   al:'La duración del alcance se usa para calcular la hora esperada de cada paso del seguimiento, sin depender de un GPS.'
 };
 route('parametros',{title:'Parámetros generales',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(arg){
@@ -163,6 +199,7 @@ const CLI_CFG={key:'cli',tabla:'clientes',label:'Cliente',idEditable:true,idPh:'
   fields:[{k:'nombre',label:'Nombre o razón social',type:'text',req:1},{k:'tipo',label:'Tipo',type:'select',opts:()=>[['Persona','Persona'],['Empresa','Empresa']],req:1},{k:'tel',label:'Teléfono',type:'text',req:1},{k:'email',label:'Correo',type:'text',req:1}],
   validate:(v,row)=>{ const e={}; const id=(v.id||'').trim(); if(id&&!/^\d{8}$|^\d{11}$/.test(id)) e.id='El DNI tiene 8 dígitos y el RUC 11'; else if(id&&v.tipo){ if(id.length===8&&v.tipo!=='Persona') e.tipo='Un DNI corresponde a una persona'; if(id.length===11&&v.tipo!=='Empresa') e.tipo='Un RUC corresponde a una empresa'; }
     if(v.email&&!/^\S+@\S+\.\S+$/.test(v.email)) e.email='Correo no válido'; return e; },
+  onSave:(r,edit)=>{ if(!r.clave) r.clave='123456'; },
   used:r=>DB.tickets.filter(t=>t.cliente===r.id).map(t=>'Ticket '+t.id)};
 route('clientes',{title:'Registro de cliente',crumb:'2.2 Operativo › 2.2.1 Data-entry',view(){
   return guide(['Presione <b>Agregar</b> e ingrese DNI (8 dígitos) o RUC (11).','El sistema valida el documento, el tipo y el correo.','Al guardar, el cliente queda disponible para asignarle tickets.','Un cliente con tickets no se elimina.'],0)+crudView(CLI_CFG); }});
@@ -170,7 +207,7 @@ route('clientes',{title:'Registro de cliente',crumb:'2.2 Operativo › 2.2.1 Dat
 /* ---------------------------------------------------------------- ASIGNACIÓN DE TICKET (asistente de 6 pasos) */
 const T_STEPS = ['Cliente y carga','Servicio y espacio','Estimación del precio','Confirmación del servicio','Medio de pago','Orden de pago'];
 const T_CODE = ['','','2.2.1.2.1','2.2.1.2.2','2.2.1.2.3','2.2.1.2.4'];
-function newDraft(){ return {cliente:'',tb:'',uds:'',prod:'',alc:'',fecha:'',res:null,ticket:null}; }
+function newDraft(){ return {cliente:'',tb:'',uds:'',origen:'',destino:'',rutaErr:'',prod:'',alc:'',fecha:'',res:null,ticket:null}; }
 const D = () => UI.draft || (UI.draft = newDraft());
 const ok1 = d => d.cliente && d.tb && +d.uds>0;
 const ok2 = d => d.res && d.res.ok;
@@ -219,19 +256,21 @@ ACT['t1-next']=()=>{ const d=D(), f=$('#tbody'); d.cliente=$('[name=cliente]',f)
 const prodsDisponibles = d => DB.productos.filter(p=>p.activo&&p.tb===d.tb&&tarifaVigente(tarifaDe(p)));
 function t2(d){
   const prods=prodsDisponibles(d).map(p=>[p.id,p.id+' · '+nombreProducto(p)]);
-  const alcs=DB.alcances.filter(a=>a.km).map(a=>[a.id,a.origen+' → '+a.destino+' ('+a.km+' km · '+a.horas+' h)']);
+  const al=by(DB.alcances,d.alc);
   const prod=by(DB.productos,d.prod), th=prod?by(DB.horarios,prod.th):null, esp=espacio(d.tb,+d.uds);
   const chips=th?`<div class="chips">Fechas de salida (${th.diaSalida}): ${proximasFechas(th.diaSalida,4).map(f=>`<button class="chip ${d.fecha===f?'on':''}" data-act="t2-fecha" data-f="${f}">${dmy(f)}</button>`).join('')}</div>`:'';
   return `<h3>2. Servicio y espacio</h3>
    <div class="resumen">Carga: <b>${d.uds} × ${esc(nomCG(d.tb))}</b> → <b>${esp.n} ticket(s) · ${n2(esp.m3)} m³ · ${n2(esp.kg)} kg</b></div>
    <div class="fgrid"><label class="fld"><span>Producto *</span><select data-change="t2-set" name="prod">${optsHTML(prods,d.prod,true)}</select>${prods.length?'':'<em>No hay productos activos con tarifa vigente para este tipo de carga.</em>'}</label>
-   <label class="fld"><span>Ruta (alcance) *</span><select data-change="t2-set" name="alc">${optsHTML(alcs,d.alc,true)}</select></label>
+   <label class="fld"><span>Origen *</span><input name="origen" list="dl-lugares" value="${esc(d.origen)}" data-change="t2-set" placeholder="Ej. Lima"></label>
+   <label class="fld"><span>Destino *</span><input name="destino" list="dl-lugares" value="${esc(d.destino)}" data-change="t2-set" placeholder="Ej. Chiclayo"></label><datalist id="dl-lugares">${lugares().map(l=>'<option value="'+esc(l)+'">').join('')}</datalist>
    <label class="fld"><span>Fecha del viaje *</span><input type="date" name="fecha" value="${esc(d.fecha)}" data-change="t2-set" min="2026-06-24"></label></div>${chips}
+   ${d.rutaErr?msg('bad','✖ '+d.rutaErr):al?msg('info','Ruta '+esc(al.origen)+' → '+esc(al.destino)+': '+n2(al.km)+' km · '+al.horas+' h · '+esc(al.via)+(al.paradas&&al.paradas!=='—'?' · paradas: '+esc(al.paradas):'')):''}
    <div id="t2-res">${t2res(d)}</div>
    <div class="nav"><a class="btn" href="#/ticket/1">← Atrás</a><button class="btn okb" data-act="t2-next" ${ok2(d)?'':'disabled'}>Siguiente →</button></div>`;
 }
 function t2res(d){
-  if(!d.res) return '<p class="hint">Elija producto, ruta y fecha para verificar el espacio disponible en tiempo real.</p>';
+  if(!d.res) return '<p class="hint">Elija producto, origen, destino y fecha para verificar el espacio disponible en tiempo real.</p>';
   if(!d.res.viaje) return msg('bad','✖ '+d.res.error);
   const v=d.res.viaje, veh=vehDe(v), con=by(DB.contenedores,v.cont), ver=d.res.ver, pl=planViaje(v), p=by(DB.productos,v.prod), i=prodInfo(p), exp=ver.express;
   const fila=(n,unit,cap,uso,sol)=>`<tr><td>${n}</td><td>${n2(cap)} ${unit}</td><td>${n2(uso)} ${unit}</td><td>${n2(sol)} ${unit}</td><td class="${(cap-uso-sol)<0?'neg':''}">${n2(cap-uso-sol)} ${unit}</td><td style="min-width:160px">${bar(Math.min(cap,uso+sol),cap,unit)}</td></tr>`;
@@ -240,7 +279,7 @@ function t2res(d){
    <table class="tbl"><thead><tr><th>Dimensión</th><th>Capacidad</th><th>Ya comprometido</th><th>${exp?'Se reservará':'Solicitado'}</th><th>Disponible después</th><th>Ocupación</th></tr></thead><tbody>${fila('Tickets (m³)','tickets',ver.cap.n,ver.uso.n,ver.need)}${fila('Peso','kg',ver.cap.kg,ver.uso.kg,d.res.esp.kg)}</tbody></table>
    ${d.res.ok?msg('ok','✔ El espacio cabe en tickets y en peso. Puede continuar.'):msg('bad','✖ '+d.res.error+' <br><small>El ticket no se genera. Pruebe otra fecha o reduzca las unidades.</small>')}`;
 }
-ACT['t2-set']=el=>{ const d=D(); d[el.name]=el.value; if(el.name==='prod'){ d.fecha=''; } calcRes(d); $('#tbody').innerHTML=t2(d); };
+ACT['t2-set']=el=>{ const d=D(); d[el.name]=el.value; if(el.name==='prod'){ d.fecha=''; } if(el.name==='origen'||el.name==='destino') syncRuta(d); calcRes(d); $('#tbody').innerHTML=t2(d); };
 ACT['t2-fecha']=el=>{ const d=D(); d.fecha=el.dataset.f; calcRes(d); $('#tbody').innerHTML=t2(d); };
 ACT['t2-next']=()=>{ if(ok2(D())) go('ticket/3'); };
 
@@ -275,7 +314,7 @@ function emitirTicket(d){
   if(!by(DB.viajes,r.viaje.id)) DB.viajes.push(r.viaje);
   const tar=tarifaDe(prod), pr=estimarPrecio(tar,ver.need); let n=88103; while(DB.tickets.some(t=>t.id==='TK-'+n)) n++;
   DB.ordenes++;
-  const t={id:'TK-'+n,viaje:r.viaje.id,cliente:d.cliente,tb:d.tb,unidades:+d.uds,n:ver.need,m3:esp.m3,kg:esp.kg,tarifa:tar.id,sub:pr.sub,igv:pr.igv,total:pr.total,estado:'RESERVADO',paso:0,creado:new Date(AHORA),hist:[],medio:null,op:'OP-'+pad(DB.ordenes,6)};
+  const t={id:'TK-'+n,viaje:r.viaje.id,cliente:d.cliente,tb:d.tb,unidades:+d.uds,n:ver.need,m3:esp.m3,kg:esp.kg,origen:alc.origen,destino:alc.destino,tarifa:tar.id,sub:pr.sub,igv:pr.igv,total:pr.total,estado:'RESERVADO',paso:0,creado:new Date(AHORA),hist:[],medio:null,op:'OP-'+pad(DB.ordenes,6)};
   DB.tickets.push(t); return {ticket:t};
 }
 ACT['t-confirm']=()=>{ const d=D(); const r=emitirTicket(d); if(r.error){ toast('✖ '+r.error,'bad'); calcRes(d); go('ticket/2'); return; }
@@ -288,6 +327,7 @@ function ordenResumen(t){
   const v=by(DB.viajes,t.viaje), p=by(DB.productos,v.prod), al=by(DB.alcances,v.alcance), pl=planViaje(v);
   return {v,p,al,pl,html:`Bienes(${t.unidades})<br>Unidad: ${esc(vehDe(v).placa)} (${esc(vehDe(v).tipo)})<br>Descripción: ${esc(nomCG(t.tb))} · ${t.n} ticket(s)<br>Ruta: ${esc(al.origen)}-${esc(al.destino)}<br>Monto final a pagar: <b>${money(t.total)}</b>`}; }
 function payMethodHTML(t,ctx){
+  if(reservaVencida(t)||t.estado==='VENCIDO') return vencidoHTML(t);
   const o=ordenResumen(t), pl=o.pl;
   const btn=m=>`<button class="mbtn" data-act="pay-select" data-m="${m}" data-t="${t.id}" data-ctx="${ctx}">Seleccionar</button>`;
   return `<div class="payw"><div class="payh"><span>Elige tu medio de pago</span><span class="ccc"><i></i><i></i><i></i></span></div>
@@ -303,14 +343,16 @@ UI.pm = {}; UI.payErr = {}; UI.payVals = {};
 function payFormHTML(t,ctx){
   const m = UI.pm[t.id]||'tarjeta', back = ctx==='p'?'#/p-pago/1/'+t.id:'#/ticket/5';
   if(t.estado==='PAGADO') return payDoneHTML(t,ctx);
+  if(reservaVencida(t)||t.estado==='VENCIDO') return vencidoHTML(t);
+  if(t.estado==='CANCELADO') return '<div class="paydone"><h3>Ticket cancelado</h3></div>';
   const er=UI.payErr[t.id]||{}, va=UI.payVals[t.id]||{};
   const F=(k,label,ph,extra='')=>`<label class="fld ${er[k]?'err':''}"><span>${label}</span><input name="${k}" value="${esc(va[k]||'')}" placeholder="${ph||''}" ${extra}>${er[k]?`<em>✖ ${esc(er[k])}</em>`:''}</label>`;
   const S=(k,label,list,ph)=>`<label class="fld ${er[k]?'err':''}"><span>${label}</span><select name="${k}">${optsHTML(list,va[k]||'',true)}</select>${er[k]?`<em>✖ ${esc(er[k])}</em>`:''}</label>`;
   let left;
   if(m==='tarjeta') left=`<form data-submit="pay-submit" data-t="${t.id}" data-ctx="${ctx}" id="payform"><div class="pbl"><h4>1. Datos de la Tarjeta</h4><div class="fgrid">${S('marca','Marca:',BRANDS.map(b=>[b,b]))}${F('nro','Nro Tarjeta:','0000 0000 0000 0000','inputmode="numeric"')}${F('cvv','Cod Seguridad:','***','maxlength="4"')}<small class="cvvh">(Últimos 3 dígitos al reverso)</small>${S('mes','Fecha de expiración — Mes:',[...Array(12)].map((_,i)=>[pad(i+1),pad(i+1)]))}${S('anio','Año:',['2026','2027','2028','2029','2030','2031'].map(x=>[x,x]))}</div></div>
       <div class="pbl"><h4>2. Titular de la tarjeta</h4><div class="fgrid">${F('nombre','Nombre:')}${F('apellido','Apellido:')}${F('email','Email:')}${F('email2','Verificar Email:')}</div></div></form>`;
-  else if(m==='pagoefectivo') left=`<div class="pbl"><h4>Pago en efectivo con PagoEfectivo</h4><p>Genere su código de pago (CIP) y cancele en cualquier agente, agencia bancaria o banca móvil.</p><div class="cip">CIP <b>${'4521'+t.id.replace(/\D/g,'').slice(-4)}</b></div><p class="hint">El CIP vence junto con la reserva del espacio.</p><button class="btn okb" data-act="pay-sim" data-t="${t.id}" data-ctx="${ctx}">Ya realicé el pago (simular)</button></div>`;
-  else left=`<div class="pbl"><h4>Pago en bancos (BCP)</h4><p>Transfiera o deposite a la cuenta indicada y use este código como referencia.</p><div class="cip">Cuenta BCP <b>191-4587123-0-52</b><br>CCI <b>002-191-004587123052-19</b><br>Referencia <b>${t.op}</b></div><button class="btn okb" data-act="pay-sim" data-t="${t.id}" data-ctx="${ctx}">Ya realicé el pago (simular)</button></div>`;
+  else if(m==='pagoefectivo') left=`<div class="pbl"><h4>Pago en efectivo con PagoEfectivo</h4><p>Genere su código de pago (CIP) y cancele en cualquier agente, agencia bancaria o banca móvil.</p><div class="cip">CIP <b>${'4521'+t.id.replace(/\D/g,'').slice(-4)}</b></div><p class="hint">El CIP vence junto con la reserva del espacio.</p><button class="btn okb" data-act="pay-sim" data-t="${t.id}" data-ctx="${ctx}">Simular confirmación de la pasarela de pago</button></div>`;
+  else left=`<div class="pbl"><h4>Pago en bancos (BCP)</h4><p>Transfiera o deposite a la cuenta indicada y use este código como referencia.</p><div class="cip">Cuenta BCP <b>191-4587123-0-52</b><br>CCI <b>002-191-004587123052-19</b><br>Referencia <b>${t.op}</b></div><button class="btn okb" data-act="pay-sim" data-t="${t.id}" data-ctx="${ctx}">Simular confirmación de la pasarela de pago</button></div>`;
   return `<div class="payw"><div class="payh tab"><span>📄 Orden de pago</span><span class="ccc"><i></i><i></i><i></i></span></div>
    <div class="payurl">◀ ▶ ⟳ <span>https://www.transporteseguro.pe/pago/${t.op}</span></div>
    <div class="paycols"><div class="payleft">${left}</div>
@@ -320,7 +362,13 @@ function payDoneHTML(t,ctx){
   return `<div class="paydone"><div class="pdico">✔</div><h3>¡Pago confirmado!</h3><p>Orden <b>${t.op}</b> · ${money(t.total)} · ${MEDIOS[t.medio]||''}</p>
    <p>Ticket <b>${t.id}</b> ${pill(t.estado)} — ${t.n} ticket(s) reservados. El traslado puede iniciar.</p>
    <div class="nav"><span></span><span>${ctx==='p'?`<a class="btn pbtn2" href="#/p-rastrear/${t.id}">Rastrear mi envío</a>`:`<button class="btn" data-act="t-new">Nuevo ticket</button> <a class="btn okb" href="#/seguimiento/${t.id}">Ver seguimiento →</a>`}</span></div></div>`; }
-function pagar(t,m){ t.estado='PAGADO'; t.medio=m; toast('💳 Pago registrado: orden '+t.op); }
+const reservaVencida = t => t.estado==='RESERVADO' && addMin(t.creado,+politica('POL-02',15))<=AHORA;
+const vencidoHTML = t => `<div class="paydone"><div class="pdico" style="background:#fde8e8;color:#c0392b">⏱</div><h3>La reserva venció</h3><p>El ticket <b>${t.id}</b> no se pagó dentro de los ${politica('POL-02',15)} minutos y el espacio se liberó (REG-02).</p><p>Genere una nueva reserva para volver a comprometer el espacio.</p></div>`;
+function pagar(t,m){
+  if(t.estado==='PAGADO') return true;
+  if(reservaVencida(t)||t.estado==='VENCIDO'){ t.estado='VENCIDO'; toast('⏱ La reserva '+t.id+' venció: el espacio fue liberado','bad'); return false; }
+  if(t.estado!=='RESERVADO'){ toast('✖ El ticket '+t.id+' está '+t.estado+' y no admite pago','bad'); return false; }
+  t.estado='PAGADO'; t.medio=m; toast('💳 Pago confirmado por la pasarela: orden '+t.op); return true; }
 ACT['pay-select']=el=>{ UI.pm[el.dataset.t]=el.dataset.m; UI.payErr[el.dataset.t]={}; go(el.dataset.ctx==='p'?'p-pago/2/'+el.dataset.t:'ticket/6'); };
 ACT['pay-sim']=el=>{ const t=by(DB.tickets,el.dataset.t); pagar(t,UI.pm[t.id]); render(); };
 ACT['pay-submit']=f=>{
@@ -333,7 +381,7 @@ ACT['pay-submit']=f=>{
   if(!/^\S+@\S+\.\S+$/.test(v.email)) e.email='Correo no válido'; else if(v.email!==v.email2) e.email2='Los correos no coinciden';
   UI.payVals[t.id]=v; UI.payErr[t.id]=e;
   if(Object.keys(e).length){ toast('✖ Revise los datos de la tarjeta','bad'); render(); return; }
-  pagar(t,'tarjeta'); UI.payVals[t.id]={}; render(); };
+  if(pagar(t,'tarjeta')) UI.payVals[t.id]={}; render(); };
 
 function t5(d){ return `<h3>5. Medio de pago</h3>${payMethodHTML(d.ticket,'wf')}`; }
 function t6(d){ return `<h3>6. Orden de pago</h3>${payFormHTML(d.ticket,'wf')}`; }
@@ -398,12 +446,12 @@ function siguientePaso(v,t){ return secuenciaDe(v).pasos.find(n=>n>t.paso); }
 function segBody(t){
   const v=by(DB.viajes,t.viaje), p=by(DB.productos,v.prod), seq=secuenciaDe(v), pl=planViaje(v), nx=siguientePaso(v,t), c=by(DB.clientes,t.cliente);
   const rows=seq.pasos.map(n=>{ const ps=by(PASOS,n,'n'), e=estadoPaso(v,t,n); const cur=n===nx;
-    return `<tr class="${cur?'sel':''}"><td class="c"><b>${n}</b></td><td>${ps.nombre}<br><small>${ps.desc}</small></td><td>${ps.por}</td><td>${hhmm(e.esp)}</td><td>${e.h?hhmm(e.h.real)+' <small>('+(e.dif>0?'+':'')+e.dif+' min)</small>':'—'}</td><td>${e.est?pill(e.est):cur?'<span class="pill warn">SIGUIENTE</span>':'<span class="pill mute">PENDIENTE</span>'}</td></tr>`; }).join('');
+    return `<tr class="${cur?'sel':''}"><td class="c"><b>${n}</b></td><td>${ps.nombre}<br><small>${ps.desc}</small></td><td>${ps.por}</td><td>${hhmm(e.esp)}</td><td>${e.h?hhmm(e.h.real)+' <small>('+(e.dif>0?'+':'')+e.dif+' min)</small><br><small>'+esc(e.h.por)+'</small>':'—'}</td><td>${e.est?pill(e.est):cur?'<span class="pill warn">SIGUIENTE</span>':'<span class="pill mute">PENDIENTE</span>'}</td></tr>`; }).join('');
   let acc='';
   if(t.estado==='RESERVADO') acc=msg('warn','⚠ El ticket está <b>RESERVADO</b>: debe pagarse para iniciar el traslado. <a class="btn okb" href="#/ticket/5" data-act="seg-topay" data-id="'+t.id+'">💳 Ir al pago</a>');
   else if(['VENCIDO','CANCELADO'].includes(t.estado)) acc=msg('bad','Ticket '+t.estado+': el espacio fue liberado.');
   else if(nx && SESSION.role==='supervisor') acc=msg('info','Vista de solo lectura: los pasos los confirman los autómatas y el sistema. Siguiente paso: <b>'+nx+' '+by(PASOS,nx,'n').nombre+'</b>.');
-  else if(nx) acc=`<div class="actions"><button class="btn okb" data-act="seg-confirm" data-id="${t.id}" data-late="0">✔ Confirmar paso ${nx} (${by(PASOS,nx,'n').nombre}) a tiempo</button> <button class="btn warnb" data-act="seg-confirm" data-id="${t.id}" data-late="1">⏱ Confirmar paso ${nx} con retraso (+45 min)</button><small> Simula la confirmación de: ${by(PASOS,nx,'n').por}</small></div>`;
+  else if(nx) acc=`<div class="actions"><button class="btn okb" data-act="seg-confirm" data-id="${t.id}" data-late="0">▶ Simular paso ${nx} (${by(PASOS,nx,'n').nombre}) a tiempo</button> <button class="btn warnb" data-act="seg-confirm" data-id="${t.id}" data-late="1">⏱ Simular paso ${nx} con retraso (+45 min)</button><small> En producción lo confirma solo: ${by(PASOS,nx,'n').por}.</small></div>`;
   else acc=msg('ok','✔ Secuencia completa: el ticket está cerrado.');
   return `<div class="cards2"><div class="mini"><b>Ticket ${t.id}</b> ${pill(t.estado)}<br>Cliente: ${esc(c.nombre)}<br>${esc(nomAL(v.alcance))} · ${esc(nomCG(p.tb))}<br>Viaje ${v.id} · ${dmy(v.fecha)} · ${esc(vehDe(v).placa)} / ${esc(v.cont)}<br>Espacio: <b>${t.n} ticket(s) · ${n2(t.kg)} kg</b></div>
    <div class="mini"><b>Cómo se calcula la hora esperada</b><br>Salida <b>${hhmm(pl.sal)}</b> + (${pl.horas} h de duración del alcance × avance del paso)<br>Tolerancia entre pasos: <b>${seq.tolerancia} min</b><br>Protocolo: ${esc(p.prot)} · ${esc(by(DB.protocolos,p.prot).nombre)}</div></div>
@@ -414,9 +462,11 @@ ACT['seg-topay']=el=>{ const d=D(); d.ticket=by(DB.tickets,el.dataset.id); };
 ACT['seg-confirm']=el=>{
   const t=by(DB.tickets,el.dataset.id), v=by(DB.viajes,t.viaje), n=siguientePaso(v,t); if(!n) return;
   const late=el.dataset.late==='1', esp=esperadoPaso(v,n), real=addMin(esp,late?45:0), tol=secuenciaDe(v).tolerancia, ps=by(PASOS,n,'n');
-  t.hist.push({paso:n,real,por:ps.por}); t.paso=n;
+  let por=ps.por;
+  if(ps.por.startsWith('Autómata')){ const au=DB.automatas.find(a=>a.estado==='OK'); if(!au){ toast('✖ No hay ningún autómata disponible (todos en mantenimiento): el paso queda pendiente','bad'); return; } por=au.id+' · '+au.nombre+' ('+ps.por.replace('Autómata de ','')+')'; }
+  t.hist.push({paso:n,real,por}); t.paso=n;
   if(n>=2) t.estado='EN RUTA'; if(n>=6) t.estado='ENTREGADO'; if(n===7) t.estado='CERRADO';
-  toast('✔ Paso '+n+' ('+ps.nombre+') confirmado por '+ps.por);
+  toast('✔ Paso '+n+' ('+ps.nombre+') confirmado por '+por);
   if(late && 45>tol){ const inc={id:siguienteId('IN-',DB.incidentes,4),tipo:'INC-001',ticket:t.id,fecha:new Date(real),detalle:'Paso '+n+' ('+ps.nombre+') confirmado con 45 min de retraso (tolerancia '+tol+' min)',estado:'ABIERTO'};
     DB.incidentes.push(inc); const pr=by(DB.protocolos,by(DB.tiposIncidente,'INC-001').protocolo); toast('⚠ Incidente '+inc.id+' generado: Retraso en ruta. Protocolo '+pr.id+': '+pr.secuencia,'warn'); }
   $('#seg-body').innerHTML=segBody(t);

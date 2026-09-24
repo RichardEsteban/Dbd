@@ -8,7 +8,7 @@
   const q = new URLSearchParams(location.search);
   if(q.get('role') && ROLES[q.get('role')]) SESSION.role = q.get('role');
   if(q.get('ejemplo')==='ticket'){
-    UI.draft = Object.assign(newDraft(),{cliente:'70112233',tb:'TB-PER',uds:'40',prod:'PROD01',alc:'AL-001',fecha:'2026-06-24'}); calcRes(UI.draft);
+    UI.draft = Object.assign(newDraft(),{cliente:'70112233',tb:'CG-001',uds:'40',prod:'PROD01',origen:'Lima',destino:'Chiclayo',alc:'AL-001',fecha:'2026-06-24'}); calcRes(UI.draft);
   }
   render();
 })();

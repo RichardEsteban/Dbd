@@ -198,3 +198,5 @@ a.tl:hover{background:var(--acc)} a.tl.active{background:var(--acc);border-left-
 .pay-portal .pbl h4{text-decoration:none}
 .pbtn2{background:#2f6fed;color:#fff;border-radius:999px;border:0;padding:9px 20px;text-decoration:none}
 .ptag.exp{background:#fff1d6;color:#a05a00}
+.rolecard.acc{display:block;text-decoration:none;color:var(--ink);cursor:pointer} .rolecard.acc:hover{background:var(--acc)} .rolecard.acc small{display:block;color:#666}
+.login .fld em{color:var(--bad);font-size:12px;font-style:normal}

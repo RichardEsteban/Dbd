@@ -1,7 +1,7 @@
 /* ============================================================
    PORTAL DEL CLIENTE (estilo pulido)
    ============================================================ */
-const PCLI = '70112233';
+let PCLI = '70112233';                         // cliente con sesión iniciada (cambia al iniciar sesión)
 const ICON = {'CG-001':'🧊','CG-002':'🥚','CG-003':'📦','CG-004':'🛢️'};
 function portalShell(cur,inner){
   const L=[['p-catalogo','Catálogo'],['p-cotizar','Cotizar'],['p-rastrear','Rastrear envío'],['p-envios','Mis envíos']];
@@ -17,7 +17,7 @@ route('p-catalogo',{title:'',view(){
      <div class="pprice">Desde <b>${precioDe(p)}</b></div><a class="pbtn" href="#/p-cotizar" data-act="p-pick" data-prod="${p.id}">Cotizar este servicio</a></div>`; }).join('');
   return `<section class="phero"><div><span class="pkick">Catálogo de servicios</span><h1>Transportamos tu carga con seguimiento paso a paso</h1><p>Elige el tipo de carga, reserva el espacio que necesitas (1 ticket = 1 m³) y sigue cada etapa del traslado. Sin llamadas, sin GPS externo.</p><a class="pbtn big" href="#/p-cotizar">Cotizar envío</a></div><div class="pheroart">🚚📦</div></section>
    <h2 class="ph2">¿Qué transportamos?</h2><div class="pgrid">${cards}</div>
-   <h2 class="ph2">Rutas disponibles</h2><div class="pchips">${DB.alcances.filter(a=>a.km).map(a=>`<span class="pchip">${esc(a.origen)} → ${esc(a.destino)} <small>${n2(a.km)} km · ${a.horas} h</small></span>`).join('')}</div>
+   <h2 class="ph2">Rutas disponibles</h2><div class="pchips">${DB.alcances.filter(a=>a.km).map(a=>`<a class="pchip" href="#/p-cotizar" data-act="p-ruta" data-o="${esc(a.origen)}" data-d="${esc(a.destino)}">${esc(a.origen)} → ${esc(a.destino)} <small>${n2(a.km)} km · ${a.horas} h</small></a>`).join('')}</div>
    <h2 class="ph2">Cómo funciona</h2><div class="psteps"><div><b>1</b><h4>Reserva tu espacio</h4><p>Indicas qué envías y cuántas unidades; calculamos los tickets (m³) y kg que ocupará.</p></div><div><b>2</b><h4>Elige cómo pagar</h4><p>Ves el precio con IGV, reservamos tu espacio ${politica('POL-02',15)} minutos y eliges tarjeta, PagoEfectivo o banco.</p></div><div><b>3</b><h4>Sigue los 7 pasos</h4><p>Recibido, despachado, en tránsito, en parada, en reparto, entregado y cerrado.</p></div></div>`; }});
 ACT['p-pick']=el=>{ const p=by(DB.productos,el.dataset.prod); UI.pd=Object.assign(newDraft(),{cliente:PCLI,tb:p.tb,prod:p.id,uds:''}); };
 
@@ -29,7 +29,7 @@ route('p-cotizar',{title:'',view(){
   const bienes=DB.cargas.map(b=>[b.id,b.material]);
   const prods=prodsDisponibles(d).map(p=>[p.id,nombreProducto(p)]);
   const alcs=DB.alcances.filter(a=>a.km).map(a=>[a.id,a.origen+' → '+a.destino]);
-  const prod=by(DB.productos,d.prod), th=prod?by(DB.horarios,prod.th):null;
+  const alc=by(DB.alcances,d.alc), prod=by(DB.productos,d.prod), th=prod?by(DB.horarios,prod.th):null;
   const chips=th?`<div class="pchips">${proximasFechas(th.diaSalida,4).map(f=>`<button class="pchip btnchip ${d.fecha===f?'on':''}" data-act="pd-fecha" data-f="${f}">${diaDe(f).slice(0,3)} ${dmy(f)}</button>`).join('')}</div>`:'';
   const espd = d.tb&&+d.uds>0?espacio(d.tb,+d.uds):null;
   let right='<div class="pempty">Completa el formulario para ver tu tarifa y el espacio disponible.</div>';
@@ -44,10 +44,14 @@ route('p-cotizar',{title:'',view(){
     <label class="pf"><span>¿Qué envías?</span><select data-change="pd-set" name="tb">${optsHTML(bienes,d.tb,true)}</select></label>
     <label class="pf"><span>Unidades (bultos)</span><input type="number" min="1" name="uds" value="${esc(d.uds)}" data-change="pd-set" placeholder="Ej. 40">${espd?`<small>Ocuparán ${espd.n} ticket(s) (${n2(espd.m3)} m³) · ${n2(espd.kg)} kg</small>`:''}</label>
     <label class="pf"><span>Servicio</span><select data-change="pd-set" name="prod">${optsHTML(prods,d.prod,true)}</select></label>
-    <label class="pf"><span>Ruta</span><select data-change="pd-set" name="alc">${optsHTML(alcs,d.alc,true)}</select></label>
+    <label class="pf"><span>Origen</span><input name="origen" list="dl-lugares" value="${esc(d.origen)}" data-change="pd-set" placeholder="Ej. Lima" autocomplete="off"></label>
+    <label class="pf"><span>Destino</span><input name="destino" list="dl-lugares" value="${esc(d.destino)}" data-change="pd-set" placeholder="Ej. Chiclayo" autocomplete="off"></label>
+    <datalist id="dl-lugares">${lugares().map(l=>'<option value="'+esc(l)+'">').join('')}</datalist>
+    ${d.rutaErr?`<div class="perr">${esc(d.rutaErr)}</div>`:alc?`<div class="pok">Ruta disponible: ${n2(alc.km)} km · ${alc.horas} h de viaje</div>`:''}
     <div class="pf"><span>Fecha de salida</span>${th?chips:'<small>Elige primero el servicio</small>'}</div></div>
     <div class="pbox pright"><h3>Tu tarifa</h3>${right}</div></div>`; }});
-ACT['pd-set']=el=>{ const d=PD(); d[el.name]=el.value; if(el.name==='tb'){ d.prod=''; d.fecha=''; } if(el.name==='prod') d.fecha=''; calcRes(d); render(); };
+ACT['pd-set']=el=>{ const d=PD(); d[el.name]=el.value; if(el.name==='tb'){ d.prod=''; d.fecha=''; } if(el.name==='prod') d.fecha=''; if(el.name==='origen'||el.name==='destino') syncRuta(d); calcRes(d); render(); };
+ACT['p-ruta']=el=>{ const d=PD(); d.origen=el.dataset.o; d.destino=el.dataset.d; syncRuta(d); calcRes(d); };
 ACT['pd-fecha']=el=>{ const d=PD(); d.fecha=el.dataset.f; calcRes(d); render(); };
 ACT['pd-solicitar']=()=>{ const d=PD();
   const r=emitirTicket(d); if(r.error){ toast('✖ '+r.error,'bad'); calcRes(d); render(); return; }
@@ -56,6 +60,10 @@ function pDone(d){ const t=d.ticket;
   return `<div class="pdone"><div class="pdico">✔</div><h1>¡Tu espacio está reservado!</h1><p>Ticket <b>${t.id}</b> · ${t.n} ticket(s) · ${n2(t.kg)} kg · <b>${money(t.total)}</b></p>
    <p class="pmute">Estado: <b>${t.estado}</b>${t.estado==='RESERVADO'?'. Tienes '+politica('POL-02',15)+' minutos para pagar; luego el espacio se libera.':''}</p>
    <div class="pact">${t.estado==='RESERVADO'?`<a class="pbtn big" href="#/p-pago/1/${t.id}">💳 Elegir medio de pago</a>`:''}<a class="pbtn ghost big" href="#/p-rastrear/${t.id}" data-act="pd-reset">Rastrear mi envío</a><button class="pbtn ghost big" data-act="pd-reset2">Nueva cotización</button></div></div>`; }
+const horasParaSalida = t => { const v=by(DB.viajes,t.viaje); return (planViaje(v).sal-AHORA)/3600000; };
+const cancelable = t => ['RESERVADO','PAGADO'].includes(t.estado) && horasParaSalida(t)>=+politica('POL-03',24);
+ACT['p-cancel']=el=>{ const t=by(DB.tickets,el.dataset.id); if(!cancelable(t)){ toast('✖ Ya no se puede cancelar sin cargo (menos de '+politica('POL-03',24)+' h para la salida)','bad'); return; }
+  openModal('Cancelar ticket '+t.id,'<p>Se cancelará el ticket y se <b>liberará el espacio</b> ('+t.n+' ticket(s)) en el viaje del '+dmy(by(DB.viajes,t.viaje).fecha)+'.</p><p>Cancelación sin cargo hasta '+politica('POL-03',24)+' h antes de la salida (POL-03).</p>',[{label:'Sí, cancelar',cls:'badb',fn:()=>{ t.estado='CANCELADO'; closeModal(); toast('✔ Ticket '+t.id+' cancelado: espacio liberado'); render(); }},{label:'Volver',fn:closeModal}]); };
 ACT['pd-reset']=()=>{ UI.pd=null; }; ACT['pd-reset2']=()=>{ UI.pd=null; render(); };
 
 /* ---- pantallas previas al pago (portal) ---- */
@@ -77,11 +85,11 @@ route('p-rastrear',{title:'',view(arg){
   const sel=`<select data-change="p-pick-t">${optsHTML(mios.map(x=>[x.id,x.id+' · '+nomAL(by(DB.viajes,x.viaje).alcance)]),t.id)}</select>`;
   return `<div class="ptrackhead"><div><span class="pkick">Seguimiento</span><h1 class="ph1">Ticket ${t.id}</h1><p class="pmute">${esc(nomAL(v.alcance))} · ${esc(nomCG(p.tb))} · ${t.n} ticket(s) · ${n2(t.kg)} kg reservados</p></div>${sel}</div>
    <div class="ptrack">${dots}</div>
-   <div class="pcols"><div class="pbox"><h3>Paso ${idx} de ${seq.pasos.length}</h3><div class="pbig">${actual}</div><p>${sig}</p>${t.estado==='RESERVADO'?`<a class="pbtn" href="#/p-pago/1/${t.id}">💳 Pagar ahora</a>`:''}<p class="pnote">🤖 Traslado automatizado: nuestro sistema confirma cada paso de la secuencia, sin depender de un GPS.</p></div>
+   <div class="pcols"><div class="pbox"><h3>Paso ${idx} de ${seq.pasos.length}</h3><div class="pbig">${actual}</div><p>${sig}</p>${t.estado==='RESERVADO'?`<a class="pbtn" href="#/p-pago/1/${t.id}">💳 Pagar ahora</a> `:''}${cancelable(t)?`<button class="pbtn ghost" data-act="p-cancel" data-id="${t.id}">Cancelar ticket</button>`:''}<p class="pnote">🤖 Traslado automatizado: nuestro sistema confirma cada paso de la secuencia, sin depender de un GPS.</p></div>
     <div class="pbox"><h3>Tu viaje</h3><div class="prow"><span>Salida</span><b>${diaDe(v.fecha)} ${dmy(v.fecha)} · ${hhmm(pl.sal)}</b></div><div class="prow"><span>Llegada estimada</span><b>${hhmm(pl.lle)}</b></div><div class="prow"><span>Total</span><b>${money(t.total)}</b></div><div class="prow"><span>Estado</span><b>${t.estado}</b></div></div></div>`; }});
 ACT['p-pick-t']=el=>go('p-rastrear/'+el.value);
 
 route('p-envios',{title:'',view(){
-  const rows=[...DB.tickets].filter(t=>t.cliente===PCLI).reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr><td><b>${t.id}</b></td><td>${esc(nomAL(v.alcance))}</td><td>${dmy(v.fecha)}</td><td>${t.n} ticket(s) · ${n2(t.kg)} kg</td><td>${money(t.total)}</td><td><span class="pst ${t.estado.replace(' ','')}">${t.estado}</span></td><td>${t.estado==='RESERVADO'?`<a class="plink" href="#/p-pago/1/${t.id}">Pagar ›</a> `:''}<a class="plink" href="#/p-rastrear/${t.id}">Ver ›</a></td></tr>`; }).join('');
+  const rows=[...DB.tickets].filter(t=>t.cliente===PCLI).reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr><td><b>${t.id}</b></td><td>${esc(nomAL(v.alcance))}</td><td>${dmy(v.fecha)}</td><td>${t.n} ticket(s) · ${n2(t.kg)} kg</td><td>${money(t.total)}</td><td><span class="pst ${t.estado.replace(' ','')}">${t.estado}</span></td><td>${t.estado==='RESERVADO'?`<a class="plink" href="#/p-pago/1/${t.id}">Pagar ›</a> `:''}<a class="plink" href="#/p-rastrear/${t.id}">Ver ›</a>${cancelable(t)?` <a class="plink cx" data-act="p-cancel" data-id="${t.id}" href="javascript:void(0)">Cancelar</a>`:''}</td></tr>`; }).join('');
   return `<div class="phead2"><h1 class="ph1">Mis envíos</h1><a class="pbtn" href="#/p-cotizar">Cotizar nuevo envío</a></div>
    <div class="ptable"><table><thead><tr><th>Ticket</th><th>Ruta</th><th>Fecha</th><th>Espacio</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="7">Aún no tienes envíos.</td></tr>'}</tbody></table></div>`; }});

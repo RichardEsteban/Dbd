@@ -11,6 +11,11 @@ Doble clic en `index.html`, o desde esta carpeta:
 y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?role=admin`,
 `?role=cliente`, `?role=demo` entran directo con ese perfil.
 
+## Cuentas de demostración (clave 123456)
+- Personal: 40000000 (demo), 40000001 (gerente), 40000002 (supervisor), 40000003 (administrador).
+- Clientes: 70112233 (Juan Ramos), 20601234567 (Comercial Norte SAC), 45871236 (María Vera).
+- El cliente también puede **crear su propia cuenta** desde el login (DNI/RUC, correo y contraseña).
+
 ## Estructura
 - `js/data.js`      datos de ejemplo y reglas de cálculo (espacio, precio, horas esperadas).
 - `js/ui.js`        árbol de módulos, rutas, componentes y motor de mantenimiento (agregar/editar/eliminar).
@@ -32,7 +37,8 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 7. **Aplicativo (3.1)**: avanzar reloj y ejecutar la actualización → libera reservas vencidas; generar indicadores.
 8. **Consulta de indicadores (2.1.2.1)** lee lo generado por el batch.
 9. **Técnico (3.2)**: backup manual → generar otro ticket → restaurar (los datos vuelven de verdad).
-10. **Portal del cliente**: catálogo, cotizar con direcciones, medio de pago, orden de pago y rastreo.
+10. **Peso vs. volumen**: 6 unidades de gas el 26/06 caben en tickets pero no en kg (350 kg c/u) → se rechaza por peso.
+11. **Portal del cliente**: catálogo, cotizar con direcciones, medio de pago, orden de pago y rastreo.
 
 ## Definiciones que usa el prototipo
 - **Parámetro** = variable fija que define el producto. Tarifas y seguimiento son **reportes**, no parámetros.
