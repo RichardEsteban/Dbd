@@ -19,7 +19,7 @@ const PASOS = [
   {n:6, nombre:'Entregado',  desc:'La carga llega a la terminal de destino',                por:'Autómata de descarga',ref:['lle',0]},
   {n:7, nombre:'Cerrado',    desc:'El ticket se cierra con conformidad',                 por:'Sistema',             ref:['lle',15]}
 ];
-const TIPOS_VEHICULO = ['Camión','Furgoneta','Cisterna'];
+const TIPOS_VEHICULO = ['Camión','Furgoneta','Cisterna','Blindado'];
 const MEDIOS = {tarjeta:'Tarjeta de crédito', pagoefectivo:'Transferencia y depósito en efectivo (PagoEfectivo)', banco:'Pago en bancos (BCP)'};
 
 function seed(){
@@ -29,37 +29,73 @@ function seed(){
       {id:'r-veh-001', placa:'XYZ123', tipo:'Camión',    ejes:2, cargaMax:5000,  consumo:4,  estado:'OK'},
       {id:'r-veh-002', placa:'ABC345', tipo:'Furgoneta', ejes:4, cargaMax:12000, consumo:12, estado:'OK'},
       {id:'r-veh-003', placa:'FGC576', tipo:'Cisterna',  ejes:3, cargaMax:9000,  consumo:15, estado:'OK'},
-      {id:'r-veh-004', placa:'DEF890', tipo:'Furgoneta', ejes:2, cargaMax:8000,  consumo:8,  estado:'MANTENIMIENTO'}
+      {id:'r-veh-004', placa:'DEF890', tipo:'Furgoneta', ejes:2, cargaMax:8000,  consumo:8,  estado:'MANTENIMIENTO'},
+      {id:'r-veh-005', placa:'BCD456', tipo:'Camión',    ejes:3, cargaMax:6000,  consumo:6,  estado:'OK'},
+      {id:'r-veh-006', placa:'GHJ789', tipo:'Furgoneta', ejes:2, cargaMax:10000, consumo:10, estado:'OK'},
+      {id:'r-veh-007', placa:'KLM012', tipo:'Cisterna',  ejes:3, cargaMax:10000, consumo:16, estado:'OK'},
+      {id:'r-veh-008', placa:'BLD001', tipo:'Blindado',  ejes:3, cargaMax:7000,  consumo:14, estado:'OK'},
+      {id:'r-veh-009', placa:'NPQ345', tipo:'Camión',    ejes:2, cargaMax:5500,  consumo:5,  estado:'OK'},
+      {id:'r-veh-010', placa:'BLD002', tipo:'Blindado',  ejes:3, cargaMax:7000,  consumo:14, estado:'OK'}
     ],
     cargas:[                                   // "Tipo de carga": volumen y peso POR UNIDAD (bulto)
       {id:'CG-001', material:'Perecible',   volumen:0.5, peso:60,  temp:'−12 °C'},
       {id:'CG-002', material:'Frágil',      volumen:1,   peso:80,  temp:'15 °C'},
       {id:'CG-003', material:'Gas',         volumen:1.5, peso:350, temp:'0 °C'},
-      {id:'CG-004', material:'Radioactivo', volumen:2,   peso:500, temp:'45 °C'}
+      {id:'CG-004', material:'Radioactivo', volumen:2,   peso:500, temp:'45 °C'},
+      {id:'CG-005', material:'Abarrotes',   volumen:0.4, peso:120, temp:'ambiente'},
+      {id:'CG-006', material:'Medicamentos',volumen:0.05,peso:8,   temp:'2 a 8 °C'},
+      {id:'CG-007', material:'Dinero en efectivo', volumen:0.05, peso:25, temp:'ambiente'}
     ],
     contenedores:[                             // tickets = m³ (1 ticket = 1 m³)
       {id:'r-cont-001', tipo:'Freezer',    material:'MC-1', tickets:36, cargaMax:4500, temp:'−20 / 10 °C', estado:'OK'},
       {id:'r-cont-002', tipo:'Anti-shock', material:'MC-2', tickets:60, cargaMax:8000, temp:'ambiente',    estado:'OK'},
       {id:'r-cont-003', tipo:'Hermético',  material:'MC-3', tickets:30, cargaMax:6000, temp:'−10 / 5 °C',  estado:'OK'},
-      {id:'r-cont-004', tipo:'Blindado',   material:'MC-4', tickets:20, cargaMax:3000, temp:'ambiente',    estado:'MANTENIMIENTO'}
+      {id:'r-cont-004', tipo:'Blindado',   material:'MC-4', tickets:20, cargaMax:3000, temp:'ambiente',    estado:'MANTENIMIENTO'},
+      {id:'r-cont-005', tipo:'Freezer',    material:'MC-1', tickets:30, cargaMax:4000, temp:'−20 / 10 °C', estado:'OK'},
+      {id:'r-cont-006', tipo:'Seco',       material:'MC-5', tickets:48, cargaMax:9000, temp:'ambiente',    estado:'OK'},
+      {id:'r-cont-007', tipo:'Refrigerado',material:'MC-6', tickets:24, cargaMax:3500, temp:'2 / 8 °C',    estado:'OK'},
+      {id:'r-cont-008', tipo:'Blindado',   material:'MC-4', tickets:10, cargaMax:4000, temp:'ambiente',    estado:'OK'},
+      {id:'r-cont-009', tipo:'Hermético',  material:'MC-3', tickets:30, cargaMax:6000, temp:'−10 / 5 °C',  estado:'OK'},
+      {id:'r-cont-010', tipo:'Anti-shock', material:'MC-2', tickets:40, cargaMax:6000, temp:'ambiente',    estado:'OK'},
+      {id:'r-cont-011', tipo:'Blindado',   material:'MC-4', tickets:10, cargaMax:4000, temp:'ambiente',    estado:'OK'}
     ],
     alcances:[
       {id:'AL-001', origen:'Lima',     destino:'Chiclayo', via:'Asfaltada',      paradas:'Huacho, Trujillo', km:768,  horas:12},
       {id:'AL-002', origen:'Lima',     destino:'Junín',    via:'Asfalt./Trocha', paradas:'La Oroya',         km:300,  horas:6},
       {id:'AL-003', origen:'Trujillo', destino:'Tacna',    via:'Asfaltada',      paradas:'Lima, Ica',        km:1450, horas:25},
-      {id:'AL-004', origen:'Lima',     destino:'Loreto',   via:'Fluvial',        paradas:'—',                km:null, horas:null}
+      {id:'AL-004', origen:'Lima',     destino:'Loreto',   via:'Fluvial',        paradas:'—',                km:null, horas:null},
+      {id:'AL-005', origen:'Lima',     destino:'Arequipa', via:'Asfaltada',      paradas:'Ica, Nazca',       km:1010, horas:16},
+      {id:'AL-006', origen:'Lima',     destino:'Ica',      via:'Asfaltada',      paradas:'Cañete, Chincha',  km:300,  horas:4},
+      {id:'AL-007', origen:'Lima',     destino:'Trujillo', via:'Asfaltada',      paradas:'Huacho, Chimbote', km:560,  horas:9},
+      {id:'AL-008', origen:'Lima',     destino:'Piura',    via:'Asfaltada',      paradas:'Trujillo, Chiclayo',km:980, horas:15},
+      {id:'AL-009', origen:'Lima',     destino:'Cusco',    via:'Asfalt./Trocha', paradas:'Ica, Abancay',     km:1100, horas:20},
+      {id:'AL-010', origen:'Chiclayo', destino:'Lima',     via:'Asfaltada',      paradas:'Trujillo, Huacho', km:768,  horas:12},
+      {id:'AL-011', origen:'Arequipa', destino:'Lima',     via:'Asfaltada',      paradas:'Nazca, Ica',       km:1010, horas:16},
+      {id:'AL-012', origen:'Junín',    destino:'Lima',     via:'Asfalt./Trocha', paradas:'La Oroya',         km:300,  horas:6},
+      {id:'AL-013', origen:'Arequipa', destino:'Tacna',    via:'Asfaltada',      paradas:'Moquegua',         km:370,  horas:6},
+      {id:'AL-014', origen:'Lima',     destino:'Tacna',    via:'Asfaltada',      paradas:'Ica, Arequipa',    km:1200, horas:19},
+      {id:'AL-015', origen:'Trujillo', destino:'Lima',     via:'Asfaltada',      paradas:'Chimbote, Huacho', km:560,  horas:9}
     ],
     horarios:[
       {id:'HOR-001', diaSalida:'Lunes',     hSalida:'21:00'},
       {id:'HOR-002', diaSalida:'Miércoles', hSalida:'08:00'},
       {id:'HOR-003', diaSalida:'Viernes',   hSalida:'14:00'},
-      {id:'HOR-004', diaSalida:'Domingo',   hSalida:'05:00'}
+      {id:'HOR-004', diaSalida:'Domingo',   hSalida:'05:00'},
+      {id:'HOR-005', diaSalida:'Martes',    hSalida:'06:00'},
+      {id:'HOR-006', diaSalida:'Jueves',    hSalida:'07:00'},
+      {id:'HOR-007', diaSalida:'Sábado',    hSalida:'18:00'},
+      {id:'HOR-008', diaSalida:'Lunes',     hSalida:'06:00'},
+      {id:'HOR-009', diaSalida:'Viernes',   hSalida:'05:00'}
     ],
     servicios:[
       {id:'SER-001', nombre:'Perecible económico', modalidad:'Económico', base:'ticket'},
       {id:'SER-002', nombre:'Frágil express',      modalidad:'Express',   base:'fija'},
       {id:'SER-003', nombre:'Gas económico',       modalidad:'Económico', base:'ticket'},
-      {id:'SER-004', nombre:'Radioactivo express', modalidad:'Express',   base:'fija'}
+      {id:'SER-004', nombre:'Radioactivo express', modalidad:'Express',   base:'fija'},
+      {id:'SER-005', nombre:'Abarrotes económico', modalidad:'Económico', base:'ticket'},
+      {id:'SER-006', nombre:'Medicamentos económico', modalidad:'Económico', base:'ticket'},
+      {id:'SER-007', nombre:'Medicamentos express', modalidad:'Express',  base:'fija'},
+      {id:'SER-008', nombre:'Traslado de valores express', modalidad:'Express', base:'fija'}
     ],
     automatas:[
       {id:'AUT-001', nombre:'Automata A', rol:'Brazo Robótico', estado:'OK'},
@@ -72,7 +108,8 @@ function seed(){
       {id:'PROT-001', nombre:'Ejecutar traslado',            secuencia:'Validar ticket → Salida → Pasos de la secuencia → Cierre', activacion:'Ticket pagado + unidad asignada',        version:'v3', activo:true},
       {id:'PROT-002', nombre:'Traslado seguro volátil',      secuencia:'Validar → Ruta segura → Salida → Cierre',                   activacion:'Ticket pagado + contenedor hermético',   version:'v1', activo:true},
       {id:'PROT-003', nombre:'Atención de falla mecánica',   secuencia:'Detener → Notificar → Reasignar unidad',                    activacion:'Incidente de tipo falla mecánica',        version:'v2', activo:true},
-      {id:'PROT-004', nombre:'Respuesta a incidente crítico',secuencia:'Detener → Alertar → Reportar → Cierre',                     activacion:'Incidente con severidad crítica',         version:'v1', activo:true}
+      {id:'PROT-004', nombre:'Respuesta a incidente crítico',secuencia:'Detener → Alertar → Reportar → Cierre',                     activacion:'Incidente con severidad crítica',         version:'v1', activo:true},
+      {id:'PROT-005', nombre:'Traslado de valores',          secuencia:'Validar ticket y destinatario → Sellar contenedor → Salida → Ruta reservada → Entrega contra firma → Cierre', activacion:'Ticket pagado + contenedor y unidad blindados', version:'v1', activo:true}
     ],
     reglas:[
       {id:'REG-01', nombre:'Capacidad del viaje',       descripcion:'El ticket solo se genera si el espacio solicitado cabe en tickets (m³) Y en peso (kg).', accion:'Rechazar ticket', activo:true},
@@ -92,7 +129,11 @@ function seed(){
       {id:'CP-001', tb:'CG-001', tc:'Freezer',    tv:'Camión',    ok:true, obs:'Cadena de frío'},
       {id:'CP-002', tb:'CG-002', tc:'Anti-shock', tv:'Furgoneta', ok:true, obs:''},
       {id:'CP-003', tb:'CG-003', tc:'Hermético',  tv:'Cisterna',  ok:true, obs:'Presión controlada'},
-      {id:'CP-004', tb:'CG-004', tc:'Blindado',   tv:'Furgoneta', ok:true, obs:'Requiere unidad blindada'}
+      {id:'CP-004', tb:'CG-004', tc:'Blindado',   tv:'Furgoneta', ok:true, obs:'Requiere unidad blindada'},
+      {id:'CP-005', tb:'CG-005', tc:'Seco',        tv:'Camión',    ok:true, obs:''},
+      {id:'CP-006', tb:'CG-006', tc:'Refrigerado', tv:'Furgoneta', ok:true, obs:'Cadena de frío 2 a 8 °C'},
+      {id:'CP-007', tb:'CG-007', tc:'Blindado',    tv:'Blindado',  ok:true, obs:'Contenedor y unidad blindados; entrega contra firma'},
+      {id:'CP-008', tb:'CG-007', tc:'Seco',        tv:'Camión',    ok:false,obs:'El dinero solo viaja en contenedor y unidad blindados'}
     ],
     tiposIncidente:[
       {id:'INC-001', nombre:'Retraso en ruta',  categoria:'Operativo', severidad:'Baja',    protocolo:'PROT-001', activo:true},
@@ -104,14 +145,28 @@ function seed(){
       {id:'PROD01', tv:'Camión',    tb:'CG-001', th:'HOR-002', prot:'PROT-001', ts:'SER-001', activo:true},
       {id:'PROD02', tv:'Furgoneta', tb:'CG-002', th:'HOR-001', prot:'PROT-001', ts:'SER-002', activo:true},
       {id:'PROD03', tv:'Cisterna',  tb:'CG-003', th:'HOR-003', prot:'PROT-002', ts:'SER-003', activo:true},
-      {id:'PROD04', tv:'Furgoneta', tb:'CG-004', th:'HOR-004', prot:'PROT-002', ts:'SER-004', activo:false}
+      {id:'PROD04', tv:'Furgoneta', tb:'CG-004', th:'HOR-004', prot:'PROT-002', ts:'SER-004', activo:false},
+      {id:'PROD05', tv:'Camión',    tb:'CG-001', th:'HOR-005', prot:'PROT-001', ts:'SER-001', activo:true},
+      {id:'PROD06', tv:'Camión',    tb:'CG-005', th:'HOR-006', prot:'PROT-001', ts:'SER-005', activo:true},
+      {id:'PROD07', tv:'Camión',    tb:'CG-005', th:'HOR-007', prot:'PROT-001', ts:'SER-005', activo:true},
+      {id:'PROD08', tv:'Furgoneta', tb:'CG-006', th:'HOR-005', prot:'PROT-001', ts:'SER-006', activo:true},
+      {id:'PROD09', tv:'Furgoneta', tb:'CG-006', th:'HOR-006', prot:'PROT-001', ts:'SER-007', activo:true},
+      {id:'PROD10', tv:'Blindado',  tb:'CG-007', th:'HOR-008', prot:'PROT-005', ts:'SER-008', activo:true},
+      {id:'PROD11', tv:'Blindado',  tb:'CG-007', th:'HOR-009', prot:'PROT-005', ts:'SER-008', activo:true}
     ],
     /* ---------- REPORTE DE TARIFAS (datos de consulta, no parámetro) ---------- */
     tarifas:[
       {id:'TAR-001', prod:'PROD01', modalidad:'Económico', base:'ticket', valor:120, desde:'2026-01-01', hasta:'2026-12-31'},
       {id:'TAR-002', prod:'PROD02', modalidad:'Express',   base:'fija',   valor:300, desde:'2026-01-01', hasta:'2026-12-31'},
       {id:'TAR-003', prod:'PROD03', modalidad:'Económico', base:'ticket', valor:95,  desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-004', prod:'PROD04', modalidad:'Express',   base:'fija',   valor:480, desde:'2026-01-01', hasta:'2026-05-31'}
+      {id:'TAR-004', prod:'PROD04', modalidad:'Express',   base:'fija',   valor:480, desde:'2026-01-01', hasta:'2026-05-31'},
+      {id:'TAR-005', prod:'PROD05', modalidad:'Económico', base:'ticket', valor:120, desde:'2026-01-01', hasta:'2026-12-31'},
+      {id:'TAR-006', prod:'PROD06', modalidad:'Económico', base:'ticket', valor:60,  desde:'2026-01-01', hasta:'2026-12-31'},
+      {id:'TAR-007', prod:'PROD07', modalidad:'Económico', base:'ticket', valor:60,  desde:'2026-01-01', hasta:'2026-12-31'},
+      {id:'TAR-008', prod:'PROD08', modalidad:'Económico', base:'ticket', valor:210, desde:'2026-01-01', hasta:'2026-12-31'},
+      {id:'TAR-009', prod:'PROD09', modalidad:'Express',   base:'fija',   valor:900, desde:'2026-01-01', hasta:'2026-12-31'},
+      {id:'TAR-010', prod:'PROD10', modalidad:'Express',   base:'fija',   valor:2500,desde:'2026-01-01', hasta:'2026-12-31'},
+      {id:'TAR-011', prod:'PROD11', modalidad:'Express',   base:'fija',   valor:2500,desde:'2026-01-01', hasta:'2026-12-31'}
     ],
     clientes:[
       {id:'70112233',    clave:'123456', nombre:'Juan Ramos',          tipo:'Persona', tel:'987 654 321', email:'juan.ramos@mail.com'},
@@ -130,7 +185,11 @@ function seed(){
       {id:'VJ-0001', prod:'PROD01', alcance:'AL-001', fecha:'2026-06-24', veh:'r-veh-001', cont:'r-cont-001'},
       {id:'VJ-0002', prod:'PROD02', alcance:'AL-002', fecha:'2026-06-29', veh:'r-veh-002', cont:'r-cont-002'},
       {id:'VJ-0003', prod:'PROD03', alcance:'AL-002', fecha:'2026-06-26', veh:'r-veh-003', cont:'r-cont-003'},
-      {id:'VJ-0000', prod:'PROD01', alcance:'AL-002', fecha:'2026-06-10', veh:'r-veh-001', cont:'r-cont-001'}
+      {id:'VJ-0000', prod:'PROD01', alcance:'AL-002', fecha:'2026-06-10', veh:'r-veh-001', cont:'r-cont-001'},
+      {id:'VJ-0004', prod:'PROD10', alcance:'AL-007', fecha:'2026-06-29', veh:'r-veh-008', cont:'r-cont-008'},
+      {id:'VJ-0005', prod:'PROD05', alcance:'AL-007', fecha:'2026-06-30', veh:'r-veh-005', cont:'r-cont-005'},
+      {id:'VJ-0006', prod:'PROD06', alcance:'AL-005', fecha:'2026-06-25', veh:'r-veh-009', cont:'r-cont-006'},
+      {id:'VJ-0007', prod:'PROD08', alcance:'AL-006', fecha:'2026-06-30', veh:'r-veh-006', cont:'r-cont-007'}
     ],
     tickets:[], incidentes:[], backups:[], indicadores:null, bitacoraBatch:[], ordenes:0
   };
@@ -271,6 +330,10 @@ function verificarEspacio(viaje, esp, prod){
   mk('TK-80012','VJ-0002','45871236','CG-002',30,'PAGADO',0,D('09:05'),[]);
   mk('TK-80014','VJ-0003','20601234567','CG-003',8,'PAGADO',0,D('09:10'),[]);
   mk('TK-80013','VJ-0003','70112233','CG-003',4,'RESERVADO',0,D('09:40'),[]);
+  mk('TK-80015','VJ-0004','20601234567','CG-007',40,'PAGADO',0,D('09:20'),[]);
+  mk('TK-80016','VJ-0005','20601234567','CG-001',30,'PAGADO',0,D('09:25'),[]);
+  mk('TK-80017','VJ-0006','45871236','CG-005',40,'PAGADO',0,D('09:30'),[]);
+  mk('TK-80018','VJ-0007','70112233','CG-006',150,'PAGADO',0,D('09:35'),[]);
   mk('TK-80010','VJ-0000','45871236','CG-001',20,'CERRADO',7,new Date('2026-06-09T18:00:00'),
      ['07:00','08:00','09:25','12:00','13:20','14:05','14:15'].map((h,i)=>({paso:i+1,real:new Date('2026-06-10T'+h+':00'),por:by(PASOS,i+1,'n').por})));
   DB.incidentes.push({id:'IN-0001',tipo:'INC-001',ticket:'TK-80010',fecha:new Date('2026-06-10T11:40:00'),detalle:'Paso 4 confirmado con 42 min de retraso (tolerancia 30 min)',estado:'CERRADO'});

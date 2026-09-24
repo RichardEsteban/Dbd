@@ -40,6 +40,12 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 10. **Peso vs. volumen**: 6 unidades de gas el 26/06 caben en tickets pero no en kg (350 kg c/u) → se rechaza por peso.
 11. **Portal del cliente**: catálogo, cotizar con direcciones, medio de pago, orden de pago y rastreo.
 
+## Servicios disponibles
+- **Económico (por ticket):** perecible (Mar y Mié), abarrotes (Jue y Sáb), medicamentos (Mar), gas (Vie).
+- **Express (tarifa fija, contenedor exclusivo):** frágil (Lun), medicamentos (Jue) y **traslado de valores** (Lun y Vie).
+- **Traslado de valores (dinero en efectivo):** solo en unidad y contenedor blindados, siempre Express, con protocolo PROT-005 (entrega contra firma). La empresa solo transporta: no incluye escolta.
+- 14 rutas operativas entre provincias (Lima, Chiclayo, Trujillo, Piura, Arequipa, Ica, Cusco, Junín, Tacna); Lima → Loreto queda sin operar (falta distancia y duración).
+
 ## Definiciones que usa el prototipo
 - **Parámetro** = variable fija que define el producto. Tarifas y seguimiento son **reportes**, no parámetros.
 - **Producto** = tipo de vehículo + tipo de carga + horario + protocolo + tipo de servicio (la tarifa sale del reporte).

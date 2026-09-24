@@ -67,7 +67,7 @@ function treeHTML(cur){
     const k = n.k||inh;
     if(k && !puede(k)) return '';
     const active = n.r && (rutaDe(n.r)===cur.key) ? ' active':'';
-    const head = `<span class="num">${esc(n.n)}</span>${esc(n.label)}${n.fig?'<i class="figtag" title="Módulo tomado del diseño en Figma">F</i>':''}`;
+    const head = `<span class="num">${esc(n.n)}</span>${esc(n.label)}`;
     if(n.kids && !n.r) return `<div class="tg"><div class="tl d${depth}">${head}</div>${rec(n.kids,depth+1,k)}</div>`;
     if(n.kids) return `<a class="tl d${depth} link${active}" href="#/${n.r}">${head}</a>${rec(n.kids,depth+1,k)}`;
     return `<a class="tl d${depth} link${active}" href="#/${n.r}">${head}</a>`;
@@ -118,7 +118,7 @@ function render(){
   app.className='wf-mode';
   app.innerHTML = `<header class="top"><div class="brand">🚚 <b>Transporte Seguro</b> <small>prototipo</small></div>
      <div class="who">${ROLES[SESSION.role].label} <a href="#/p-catalogo" class="lnk">Ver portal del cliente ↗</a> <a href="#/login" class="lnk">Cambiar de perfil</a></div></header>
-     <nav class="side">${treeHTML(cur)}<div class="legend"><i class="figtag">F</i> módulo agregado desde el diseño de Figma</div></nav>
+     <nav class="side">${treeHTML(cur)}</nav>
      <main class="main"><div class="crumb">${R.crumb||''}</div><h1>${R.title}</h1>${R.view(cur.arg)}</main>`;
   if(R.after) R.after(cur.arg);
   window.scrollTo(0,0);

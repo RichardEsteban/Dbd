@@ -2,7 +2,7 @@
    PORTAL DEL CLIENTE (estilo pulido)
    ============================================================ */
 let PCLI = '70112233';                         // cliente con sesión iniciada (cambia al iniciar sesión)
-const ICON = {'CG-001':'🧊','CG-002':'🥚','CG-003':'📦','CG-004':'🛢️'};
+const ICON = {'CG-001':'🧊','CG-002':'🥚','CG-003':'📦','CG-004':'☢️','CG-005':'🌾','CG-006':'💊','CG-007':'💵'};
 const PORTAL_NAV=[['p-catalogo','Catálogo de servicios'],['p-cotizar','Cotizar envío'],['p-rastrear','Rastrear envío'],['p-envios','Mis envíos']];
 function portalLayout(cur,inner){
   const cli=by(DB.clientes,PCLI), interno=SESSION.role!=='cliente';
@@ -11,7 +11,7 @@ function portalLayout(cur,inner){
   return `<header class="top"><div class="brand">🚚 <b>Transporte Seguro</b> <small>portal del cliente</small></div>
      <div class="who">${esc(cli?cli.nombre:'')} ${interno?`<a href="#/${HOME[SESSION.role]}" class="lnk">← Volver al sistema interno</a>`:''} <a href="#/login" class="lnk">Salir</a></div></header>
      <nav class="side"><div class="tg"><div class="tl d0">Portal del cliente</div>${nav}</div><div class="legend">Reserva espacio en un contenedor (1 ticket = 1 m³), paga en línea y sigue tu envío por sus 7 pasos.</div></nav>
-     <main class="main"><div class="crumb">${crumb}</div>${inner}<footer class="crumb" style="margin-top:40px">Prototipo · sin base de datos · los datos viven en memoria</footer></main>`;
+     <main class="main"><div class="crumb">${crumb}</div>${inner}</main>`;
 }
 const precioDe = p => { const t=tarifaDe(p); if(!t) return ''; return t.base==='fija'?money(t.valor)+' por envío exclusivo':money(t.valor)+' por ticket (1 m³)'; };
 route('p-catalogo',{title:'',view(){

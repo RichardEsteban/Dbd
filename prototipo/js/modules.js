@@ -182,14 +182,14 @@ const COMPAT_CFG={key:'cp',tabla:'compat',label:'Compatibilidad',prefix:'CP-',pa
   fields:[{k:'tb',label:'Tipo de carga',type:'select',opts:todos('cargas',x=>x.material),req:1},{k:'tc',label:'Tipo de contenedor',type:'select',opts:()=>tiposContenedor().map(x=>[x,x]),req:1},{k:'tv',label:'Tipo de vehículo',type:'select',opts:()=>TIPOS_VEHICULO.map(x=>[x,x]),req:1},{k:'ok',label:'Compatible',type:'bool',def:true},{k:'obs',label:'Observación',type:'text'}],
   validate:(v,row)=>{ const e={}; const d=DB.compat.find(c=>c!==row&&c.tb===v.tb&&c.tc===v.tc&&c.tv===v.tv); if(d) e.tv='Combinación ya registrada ('+d.id+')'; if(v.ok===false&&!v.obs) e.obs='Indique el motivo cuando no es compatible'; return e; },
   used:r=>[]};
-route('compat',{title:'Catálogo de compatibilidad',crumb:'2.1 Gerencial › 2.1.1 (módulo de Figma)',view(){
+route('compat',{title:'Catálogo de compatibilidad',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(){
   return guide(['Define qué tipo de carga puede ir en qué contenedor y en qué vehículo.','Al asignar un ticket, el sistema solo propone unidades y contenedores compatibles (REG-03).','Si no es compatible, se exige el motivo.'],0)+crudView(COMPAT_CFG); }});
 
 const TINC_CFG={key:'tinc',tabla:'tiposIncidente',label:'Tipo de incidente',prefix:'INC-',padLen:3,canDisable:true,
   cols:[{label:'Código',k:'id'},{label:'Tipo de incidente',k:'nombre'},{label:'Categoría',k:'categoria'},{label:'Severidad',k:'severidad'},{label:'Protocolo asociado',k:'protocolo'},COL_ESTADO],
   fields:[{k:'nombre',label:'Tipo de incidente',type:'text',req:1},{k:'categoria',label:'Categoría',type:'select',opts:()=>['Operativo','Vehículo','Seguridad'].map(x=>[x,x]),req:1},{k:'severidad',label:'Severidad',type:'select',opts:()=>['Baja','Media','Alta','Crítica'].map(x=>[x,x]),req:1},{k:'protocolo',label:'Protocolo de respuesta',type:'select',opts:activos('protocolos',x=>x.id+' · '+x.nombre),req:1},{k:'activo',label:'Estado',type:'estado'}],
   used:r=>DB.incidentes.filter(i=>i.tipo===r.id).map(i=>'Incidente '+i.id)};
-route('tincidentes',{title:'Tipos de incidente',crumb:'2.1 Gerencial › 2.1.1 (módulo de Figma)',view(){
+route('tincidentes',{title:'Tipos de incidente',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(){
   return guide(['Cada tipo de incidente tiene una severidad y un protocolo de respuesta.','Los incidentes de retraso se generan solos cuando un paso no se confirma dentro de la tolerancia (POL-04).'],0)+crudView(TINC_CFG); }});
 
 /* ---------------------------------------------------------------- DATA-ENTRY: CLIENTES */
@@ -415,7 +415,7 @@ route('rtarifas',{title:'Reporte de tarifas',crumb:'2.2 Operativo › 2.2.2 Repo
     <p class="hint">✎ Vigencia = rango de fechas (desde–hasta) en que esa tarifa se aplica. Base de cobro = espacio comprometido en el contenedor (1 ticket = 1 m³). Fecha del sistema: ${dmy(ymd(AHORA))}.</p>
     ${sin.length?msg('warn','Productos sin tarifa: '+sin.map(p=>p.id).join(', ')+' (no pueden activarse).'):''}`; }});
 
-route('tickets',{title:'Tickets emitidos',crumb:'2.2 Operativo › 2.2.2 Reportes (módulo de Figma)',view(){
+route('tickets',{title:'Tickets emitidos',crumb:'2.2 Operativo › 2.2.2 Reportes',view(){
   const rows=[...DB.tickets].reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr data-act="tk-open" data-id="${t.id}" class="click"><td><b>${t.id}</b></td><td>${esc(by(DB.clientes,t.cliente).nombre)}</td><td>${esc(nomAL(v.alcance))}<br><small>${dmy(v.fecha)} · ${esc(vehDe(v).placa)} · ${esc(v.cont)}</small></td><td>${t.n} ticket(s)<br><small>${n2(t.m3)} m³ · ${n2(t.kg)} kg</small></td><td class="r">${money(t.total)}</td><td>${pill(t.estado)}</td></tr>`; }).join('');
   return guide(['1 ticket = 1 m³ (mínimo) de espacio dentro del contenedor de una unidad, para un viaje en una fecha.','Un envío compra tantos tickets como m³ ocupa (redondeado hacia arriba) y respeta los kg.','Haga clic en un ticket para ver su ficha completa.'],0)+
    `<table class="tbl"><thead><tr><th>Ticket</th><th>Cliente</th><th>Viaje</th><th>Espacio comprometido</th><th>Total</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table>`; }});
@@ -472,7 +472,7 @@ ACT['seg-confirm']=el=>{
   $('#seg-body').innerHTML=segBody(t);
 };
 
-route('incidentes',{title:'Reporte de incidentes',crumb:'2.2 Operativo › 2.2.2 Reportes (módulo de Figma)',view(){
+route('incidentes',{title:'Reporte de incidentes',crumb:'2.2 Operativo › 2.2.2 Reportes',view(){
   const rows=[...DB.incidentes].reverse().map(i=>{ const ti=by(DB.tiposIncidente,i.tipo), pr=by(DB.protocolos,ti.protocolo); return `<tr><td>${i.id}</td><td>${esc(ti.nombre)}</td><td>${esc(ti.severidad)}</td><td>${esc(i.ticket)}</td><td>${esc(i.detalle)}</td><td>${esc(pr.id)}<br><small>${esc(pr.secuencia)}</small></td><td>${pill(i.estado==='CERRADO'?'CERRADO':'ABIERTO')}</td></tr>`; }).join('');
   return guide(['Los retrasos se registran solos cuando un paso se confirma fuera de la tolerancia.','También puede registrarse un incidente manualmente.','Cada incidente muestra el protocolo de respuesta que corresponde a su tipo.'],0)+
    `<div class="toolbar">${SESSION.role==='supervisor'?'<small>Solo lectura</small>':'<button class="btn" data-act="inc-new">Registrar incidente</button>'}</div>
