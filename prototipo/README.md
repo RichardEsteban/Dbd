@@ -25,9 +25,10 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 
 ## Guion de demostración (10 minutos)
 1. **Acceso**: login con DNI + QR y perfiles (Seguridad).
-2. **Parámetros (2.1.1.1)**: Vehículo, Carga, Contenedor, Alcance, Horario, Servicio y Autómata. Pase el cursor sobre el ⓘ del
-   Contenedor (1 ticket = 1 m³). Intente eliminar una carga con envíos EN RUTA → se bloquea.
-3. **Catálogo de productos y reglas**: producto = combinación de parámetros; REG-06 (Express exclusivo de una sola carga).
+2. **Parámetros (2.1.1.1)**: solo **tipos**: vehículo, carga, contenedor, alcance, horario, servicio y autómata. Pase el cursor sobre el ⓘ del
+   tipo de contenedor (1 ticket = 1 m³). Intente eliminar el tipo Camión → se bloquea porque lo usan vehículos y productos.
+2b. **Registro de flota (2.2.1.3)**: placas, contenedores y autómatas con su estado; sus características estándar salen del tipo. Ponga un blindado en MANTENIMIENTO y cotice traslado de valores → no hay unidad.
+3. **Catálogo de productos y reglas**: producto = combinación de tipos (vehículo + contenedor + carga + horario + protocolo + servicio); ya no existe catálogo de compatibilidad; REG-06 (Express exclusivo de una sola carga).
 4. **Registro de cliente (2.2.1.1)** con validación de DNI/RUC.
 5. **Asignación de ticket (2.2.1.2)** en 6 pasos: cliente y carga → servicio y espacio (tickets y kg) → precio con IGV →
    confirmación → **medio de pago** → **orden de pago** con tarjeta (validaciones) → ticket PAGADO.
@@ -47,7 +48,7 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 - 14 rutas operativas entre provincias (Lima, Chiclayo, Trujillo, Piura, Arequipa, Ica, Cusco, Junín, Tacna); Lima → Loreto queda sin operar (falta distancia y duración).
 
 ## Definiciones que usa el prototipo
-- **Parámetro** = variable fija que define el producto. Tarifas y seguimiento son **reportes**, no parámetros.
+- **Parámetro** = variable fija que define el producto; solo se mantienen **tipos** (no placas ni estados). Las unidades físicas van en el **Registro de flota**. Tarifas y seguimiento son **reportes**, no parámetros.
 - **Producto** = tipo de vehículo + tipo de carga + horario + protocolo + tipo de servicio (la tarifa sale del reporte).
 - **Ticket** = espacio comprometido (1 ticket = 1 m³ mínimo, y kg) en el contenedor de una unidad para un viaje en una fecha.
 - **Express** = tarifa fija, reserva todo el contenedor y es exclusivo de una sola carga, cualquiera sea su tipo.

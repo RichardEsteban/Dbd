@@ -15,7 +15,7 @@ const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const SESSION = { role:null };
 const ROLES = {
   demo:     {label:'Modo demostración', desc:'Ve todos los módulos (ideal para exponer).', sees:['seg','2.1','2.2','3.1','3.2']},
-  gerente:  {label:'Gerente',           desc:'Parámetros, catálogos, consultas y reportes.', sees:['seg','2.1','2.2.2']},
+  gerente:  {label:'Gerente',           desc:'Parámetros, catálogos, flota, consultas y reportes.', sees:['seg','2.1','2.2.1.3','2.2.2']},
   supervisor:{label:'Supervisor',        desc:'Solo lectura: disponibilidad, seguimiento, tickets e incidentes.', sees:['seg','2.2.2.1','2.2.2.2','2.2.2.5','2.2.2.6']},
   admin:    {label:'Administrador BD',  desc:'Procesos batch, backup y contingencia.',       sees:['seg','3.1','3.2']},
   cliente:  {label:'Cliente',           desc:'Portal web: catálogo, cotización y seguimiento.', sees:['portal']}
@@ -31,17 +31,17 @@ const TREE = [
       {n:'2.1.1.3',label:'Catálogo de reglas',        r:'reglas'},
       {n:'2.1.1.4',label:'Catálogo de protocolos',    r:'protocolos'},
       {n:'2.1.1.5',label:'Catálogo de políticas',     r:'politicas'},
-      {n:'2.1.1.6',label:'Catálogo de compatibilidad',r:'compat', fig:1},
-      {n:'2.1.1.7',label:'Tipos de incidente',        r:'tincidentes', fig:1}]},
+      {n:'2.1.1.6',label:'Tipos de incidente',        r:'tincidentes'}]},
     {n:'2.1.2',label:'Consulta', kids:[{n:'2.1.2.1',label:'Consulta de indicadores', r:'indicadores'}]}]},
   {n:'2.2',label:'Operativo', k:'2.2', kids:[
     {n:'2.2.1',label:'Data-entry', k:'2.2.1', kids:[
-      {n:'2.2.1.1',label:'Registro de cliente',  r:'clientes'},
-      {n:'2.2.1.2',label:'Asignación de ticket', r:'ticket/1', kids:[
+      {n:'2.2.1.1',label:'Registro de cliente',  r:'clientes', k:'2.2.1.1'},
+      {n:'2.2.1.2',label:'Asignación de ticket', r:'ticket/1', k:'2.2.1.2', kids:[
         {n:'2.2.1.2.1',label:'Estimación del precio del servicio', r:'ticket/3'},
         {n:'2.2.1.2.2',label:'Confirmación del servicio',          r:'ticket/4'},
         {n:'2.2.1.2.3',label:'Medio de pago',                      r:'ticket/5'},
-        {n:'2.2.1.2.4',label:'Orden de pago',                      r:'ticket/6'}]}]},
+        {n:'2.2.1.2.4',label:'Orden de pago',                      r:'ticket/6'}]},
+      {n:'2.2.1.3',label:'Registro de flota',    r:'flota', k:'2.2.1.3'}]},
     {n:'2.2.2',label:'Reportes', k:'2.2.2', kids:[
       {n:'2.2.2.1',label:'Disponibilidad de vehículos', r:'disponibilidad'},
       {n:'2.2.2.2',label:'Seguimiento del envío',       r:'seguimiento'},

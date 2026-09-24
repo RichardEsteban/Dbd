@@ -11,7 +11,6 @@ const horTxt = h => 'Sale '+h.diaSalida+' '+h2(h.hSalida);
 const h2 = h12;
 const vehDe = v => by(DB.vehiculos,v.veh);
 const estOpts = () => [['OK','OK'],['MANTENIMIENTO','MANTENIMIENTO']];
-const tiposContenedor = () => [...new Set(DB.contenedores.map(c=>c.tipo))];
 
 /* ---------------------------------------------------------------- SEGURIDAD / LOGIN */
 route('login',{title:'',view(){
@@ -69,7 +68,7 @@ ACT['reg-save']=f=>{ const fd=new FormData(f), v={}; ['id','tipo','nombre','tel'
 
 
 route('seguridad',{title:'Acceso y perfiles',crumb:'Seguridad',view(){
-  const mods=['Parámetros y catálogos','Consulta de indicadores','Data-entry (lo usa el cliente en el portal)','Reportes','Procesos batch','Backup y restauración'];
+  const mods=['Parámetros y catálogos','Consulta de indicadores','Data-entry (cliente, flota; el cliente ticket/pago en el portal)','Reportes','Procesos batch','Backup y restauración'];
   const M={gerente:[1,1,0,1,0,0],supervisor:[0,0,0,1,0,0],admin:[0,0,0,0,1,1],cliente:[0,0,0,0,0,0],demo:[1,1,1,1,1,1]};
   const rows=Object.keys(ROLES).map(k=>`<tr class="${SESSION.role===k?'sel':''}"><td><b>${ROLES[k].label}</b><br><small>${ROLES[k].desc}</small></td>${M[k].map(x=>`<td class="c">${x?'✔':'—'}</td>`).join('')}</tr>`).join('');
   return guide(['Ingresa con DNI y contraseña, o escaneando un QR (segundo método de autenticación).','El perfil define qué módulos aparecen en el menú de la izquierda.','El Cliente solo ve el portal web (catálogo, cotización, pago y seguimiento).','Cambie de perfil desde la parte superior para ver cada vista.'],0)+
@@ -84,23 +83,23 @@ function estadoCarga(id){
   return '—';
 }
 const ESTADO_UNIDAD = {label:'Estado', f:r=>pill(r.estado)};
+const dupNombre = (tabla,label) => (v,row) => DB[tabla].some(x=>x!==row&&norm(x.nombre)===norm(v.nombre))?{nombre:'Ya existe un '+label+' llamado “'+v.nombre+'”'}:{};
 const PARAM_CFG = {
-  veh:{key:'veh',tabla:'vehiculos',label:'Vehículo',prefix:'r-veh-',padLen:3,canDisable:true,
-    cols:[{label:'Código',k:'id'},{label:'Placa',k:'placa'},{label:'Tipo',k:'tipo'},{label:'Ejes',k:'ejes'},{label:'Carga máx.',f:r=>n2(r.cargaMax)+' kg'},{label:'Consumo',f:r=>r.consumo+' L/100km'},ESTADO_UNIDAD],
-    fields:[{k:'placa',label:'Placa',type:'text',req:1,ph:'ABC123'},{k:'tipo',label:'Tipo',type:'select',opts:()=>TIPOS_VEHICULO.map(x=>[x,x]),req:1},{k:'ejes',label:'N° de ejes',type:'number',req:1,min:1},{k:'cargaMax',label:'Carga máxima (kg)',type:'number',req:1,min:1},{k:'consumo',label:'Consumo (L/100 km)',type:'number',req:1,min:1},{k:'estado',label:'Estado',type:'select',opts:estOpts,req:1,def:'OK'}],
-    validate:(v,row)=>{ const e={}; if(v.placa&&!/^[A-Za-z0-9]{6}$/.test(v.placa)) e.placa='La placa tiene 6 caracteres alfanuméricos'; else if(DB.vehiculos.some(x=>x!==row&&x.placa.toUpperCase()===String(v.placa).toUpperCase())) e.placa='La placa '+v.placa+' ya está registrada'; return e; },
-    onSave:r=>{ r.placa=String(r.placa).toUpperCase(); },
-    used:r=>DB.viajes.filter(v=>v.veh===r.id).map(v=>'Viaje '+v.id)},
+  tv:{key:'tv',tabla:'tiposVehiculo',label:'Tipo de vehículo',prefix:'TV-',padLen:3,canDisable:false,
+    cols:[{label:'Código',k:'id'},{label:'Tipo de vehículo',k:'nombre'},{label:'Ejes estándar',k:'ejes'},{label:'Carga máx. estándar',f:r=>n2(r.cargaMax)+' kg'},{label:'Consumo estándar',f:r=>r.consumo+' L/100 km'}],
+    fields:[{k:'nombre',label:'Tipo de vehículo',type:'text',req:1,ph:'Camión'},{k:'ejes',label:'N° de ejes estándar',type:'number',req:1,min:1},{k:'cargaMax',label:'Carga máxima estándar (kg)',type:'number',req:1,min:1},{k:'consumo',label:'Consumo estándar (L/100 km)',type:'number',req:1,min:1}],
+    validate:dupNombre('tiposVehiculo','tipo de vehículo'),
+    used:r=>[...DB.vehiculos.filter(v=>v.tipo===r.id).map(v=>'Vehículo '+v.placa),...DB.productos.filter(p=>p.tv===r.id).map(p=>'Producto '+p.id)]},
   car:{key:'car',tabla:'cargas',label:'Tipo de carga',prefix:'CG-',padLen:3,canDisable:false,
     cols:[{label:'Código',k:'id'},{label:'Material',k:'material'},{label:'Volumen',f:r=>r.volumen+' m³'},{label:'Peso',f:r=>r.peso+' kg'},{label:'Temperatura',k:'temp'},{label:'Estado',f:r=>{const e=estadoCarga(r.id);return e==='—'?'<span class="pill mute">SIN ENVÍOS</span>':pill(e)}}],
     fields:[{k:'material',label:'Material',type:'text',req:1},{k:'volumen',label:'Volumen por unidad (m³)',type:'number',step:'0.01',req:1,min:0.01,help:'Cada 1 m³ ocupado equivale a 1 ticket.'},{k:'peso',label:'Peso por unidad (kg)',type:'number',step:'0.01',req:1,min:0.01},{k:'temp',label:'Temperatura de transporte',type:'text',req:1,ph:'Ej. 2 a 8 °C'}],
     lock:r=>{ const t=DB.tickets.find(x=>x.tb===r.id&&x.estado==='EN RUTA'); return t?'No se puede modificar este tipo de carga mientras tenga envíos EN RUTA ('+t.id+'). Solo se edita cuando no hay carga en ruta.':''; },
-    used:r=>[...DB.productos.filter(p=>p.tb===r.id).map(p=>'Producto '+p.id),...DB.compat.filter(c=>c.tb===r.id).map(c=>'Compatibilidad '+c.id),...DB.tickets.filter(t=>t.tb===r.id).map(t=>'Ticket '+t.id)]},
-  con:{key:'con',tabla:'contenedores',label:'Contenedor',prefix:'r-cont-',padLen:3,canDisable:true,
-    cols:[{label:'Código',k:'id'},{label:'Tipo',k:'tipo'},{label:'Material',k:'material'},{label:'N° máx. tickets',k:'tickets'},{label:'Carga máx.',f:r=>n2(r.cargaMax)+' kg'},{label:'Temperatura',k:'temp'},ESTADO_UNIDAD],
-    fields:[{k:'tipo',label:'Tipo de contenedor',type:'text',req:1,ph:'Freezer'},{k:'material',label:'Material',type:'text',req:1,ph:'MC-1'},{k:'tickets',label:'N° máx. de tickets (1 ticket = 1 m³)',type:'number',req:1,min:1},{k:'cargaMax',label:'Carga máxima (kg)',type:'number',req:1,min:1},{k:'temp',label:'Rango de temperatura',type:'text',req:1},{k:'estado',label:'Estado',type:'select',opts:estOpts,req:1,def:'OK'}],
-    validate:v=>{ const mx=Math.max(...DB.vehiculos.map(t=>t.cargaMax)); return v.cargaMax>mx?{cargaMax:'La carga máx. no puede superar la del vehículo más grande ('+n2(mx)+' kg)'}:{}; },
-    used:r=>DB.viajes.filter(v=>v.cont===r.id).map(v=>'Viaje '+v.id)},
+    used:r=>[...DB.productos.filter(p=>p.tb===r.id).map(p=>'Producto '+p.id),...DB.tickets.filter(t=>t.tb===r.id).map(t=>'Ticket '+t.id)]},
+  tc:{key:'tc',tabla:'tiposContenedor',label:'Tipo de contenedor',prefix:'TC-',padLen:3,canDisable:false,
+    cols:[{label:'Código',k:'id'},{label:'Tipo de contenedor',k:'nombre'},{label:'Material',k:'material'},{label:'N° máx. tickets',k:'tickets'},{label:'Carga máx. estándar',f:r=>n2(r.cargaMax)+' kg'},{label:'Temperatura',k:'temp'}],
+    fields:[{k:'nombre',label:'Tipo de contenedor',type:'text',req:1,ph:'Freezer'},{k:'material',label:'Material',type:'text',req:1,ph:'MC-1'},{k:'tickets',label:'N° máx. de tickets (1 ticket = 1 m³)',type:'number',req:1,min:1},{k:'cargaMax',label:'Carga máxima estándar (kg)',type:'number',req:1,min:1},{k:'temp',label:'Rango de temperatura',type:'text',req:1}],
+    validate:(v,row)=>{ const e=dupNombre('tiposContenedor','tipo de contenedor')(v,row); const mx=Math.max(...DB.tiposVehiculo.map(t=>t.cargaMax)); if(v.cargaMax>mx) e.cargaMax='La carga máx. no puede superar la del tipo de vehículo más grande ('+n2(mx)+' kg)'; return e; },
+    used:r=>[...DB.contenedores.filter(c=>c.tipo===r.id).map(c=>'Contenedor '+c.id),...DB.productos.filter(p=>p.tc===r.id).map(p=>'Producto '+p.id)]},
   al:{key:'al',tabla:'alcances',label:'Alcance',prefix:'AL-',padLen:3,canDisable:false,
     cols:[{label:'Código',k:'id'},{label:'Origen',k:'origen'},{label:'Destino',k:'destino'},{label:'Tipo de vía',k:'via'},{label:'Paradas',k:'paradas'},{label:'Distancia',f:r=>r.km?n2(r.km)+' km':'—'},{label:'Duración',f:r=>r.horas?r.horas+' h':'—'}],
     fields:[{k:'origen',label:'Origen (provincia)',type:'text',req:1},{k:'destino',label:'Destino (provincia)',type:'text',req:1},{k:'via',label:'Tipo de vía',type:'select',opts:()=>['Asfaltada','Asfalt./Trocha','Fluvial','Mixta'].map(x=>[x,x]),req:1},{k:'paradas',label:'Paradas intermedias',type:'text',ph:'Huacho, Trujillo'},{k:'km',label:'Distancia (km)',type:'number',req:1,min:1},{k:'horas',label:'Duración (h)',type:'number',req:1,min:1,help:'De aquí salen las horas esperadas de cada paso del seguimiento.'}],
@@ -116,41 +115,46 @@ const PARAM_CFG = {
     fields:[{k:'nombre',label:'Servicio',type:'text',req:1,ph:'Perecible económico'},{k:'modalidad',label:'Modalidad',type:'select',opts:()=>[['Económico','Económico'],['Express','Express']],req:1},{k:'base',label:'Base de cobro',type:'select',opts:()=>Object.entries(BASE_TXT),req:1,help:'Económico se cobra por espacio comprometido; Express es tarifa fija y exclusivo de una sola carga.'}],
     validate:v=>{ const e={}; if(v.modalidad==='Express'&&v.base&&v.base!=='fija') e.base='Express usa tarifa fija (reserva exclusiva del contenedor)'; if(v.modalidad==='Económico'&&v.base==='fija') e.base='Económico se cobra por espacio comprometido'; return e; },
     used:r=>DB.productos.filter(p=>p.ts===r.id).map(p=>'Producto '+p.id)},
-  aut:{key:'aut',tabla:'automatas',label:'Autómata',prefix:'AUT-',padLen:3,canDisable:true,
-    cols:[{label:'Código',k:'id'},{label:'Nombre',k:'nombre'},{label:'Rol',k:'rol'},ESTADO_UNIDAD],
-    fields:[{k:'nombre',label:'Nombre',type:'text',req:1},{k:'rol',label:'Rol',type:'select',opts:()=>[['Brazo Robótico','Brazo Robótico']],req:1,def:'Brazo Robótico'},{k:'estado',label:'Estado',type:'select',opts:estOpts,req:1,def:'OK'}],
-    used:r=>[]}
+  ta:{key:'ta',tabla:'tiposAutomata',label:'Tipo de autómata',prefix:'TA-',padLen:3,canDisable:false,
+    cols:[{label:'Código',k:'id'},{label:'Tipo de autómata',k:'nombre'},{label:'Función en el envío',f:r=>r.funcion==='carga'?'Carga (paso 1)':'Descarga (paso 6)'}],
+    fields:[{k:'nombre',label:'Tipo de autómata',type:'text',req:1,ph:'Brazo robótico de carga'},{k:'funcion',label:'Función en el envío',type:'select',opts:()=>[['carga','Carga (paso 1: Recibido)'],['descarga','Descarga (paso 6: Entregado)']],req:1}],
+    validate:dupNombre('tiposAutomata','tipo de autómata'),
+    used:r=>DB.automatas.filter(a=>a.tipo===r.id).map(a=>'Autómata '+a.nombre)}
 };
-const PARAM_TABS = [['veh','Tipo de vehículo'],['car','Tipo de carga'],['con','Tipo de contenedor'],['al','Alcance'],['hor','Horario'],['ser','Tipo de servicio'],['aut','Autómata']];
+const PARAM_TABS = [['tv','Tipo de vehículo'],['car','Tipo de carga'],['tc','Tipo de contenedor'],['al','Alcance'],['hor','Horario'],['ser','Tipo de servicio'],['ta','Tipo de autómata']];
 const INFO = {
-  con:'Un ticket equivale a ocupar el espacio mínimo de 1 m³ dentro de un contenedor. Por eso el “N° máx. de tickets” es igual a los m³ del contenedor.',
+  tv:'Aquí solo se definen las categorías de vehículo y sus características estándar. Las placas y el estado de cada unidad se registran en la flota (Registro de flota).',
+  tc:'Un ticket equivale a ocupar el espacio mínimo de 1 m³ dentro de un contenedor. Por eso el “N° máx. de tickets” es igual a los m³ del tipo de contenedor. Los contenedores físicos se registran en la flota.',
   car:'El estado indica si hay envíos de este tipo de carga EN RUTA o ya ENTREGADOS. Mientras haya carga en ruta, el registro no se puede editar ni eliminar.',
   ser:'Económico: se cobra por espacio comprometido (tickets). Express: tarifa fija por la reserva exclusiva de todo el contenedor; es exclusivo de una sola carga, cualquiera sea su tipo.',
   hor:'El horario define solo la salida (día y hora). La llegada estimada se calcula sumando la duración del Alcance elegido, así no hay dos fuentes que se contradigan.',
-  al:'La duración del alcance se usa para calcular la hora esperada de cada paso del seguimiento, sin depender de un GPS.'
+  al:'La duración del alcance se usa para calcular la hora esperada de cada paso del seguimiento, sin depender de un GPS.',
+  ta:'Los autómatas físicos se registran en la flota. Cada paso del envío que lo confirma un autómata exige uno de este tipo, disponible.'
 };
 route('parametros',{title:'Parámetros generales',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(arg){
-  const key = PARAM_CFG[arg]?arg:'veh', cfg = PARAM_CFG[key];
+  const key = PARAM_CFG[arg]?arg:'tv', cfg = PARAM_CFG[key];
   const tabs = PARAM_TABS.map(([k,l])=>`<a class="tab ${k===key?'on':''}" href="#/parametros/${k}">${l}</a>`).join('');
   return guide(['Elija el parámetro en las pestañas.','<b>Agregar</b>: se abre el formulario vacío; el código se completa solo.','Al <b>Guardar</b> el sistema valida; si algo está mal marca el campo y explica el motivo.','<b>Editar</b> exige seleccionar una fila; <b>Eliminar</b> pide confirmación.','Si el registro ya lo usan viajes o productos, no se elimina: se propone <b>deshabilitarlo</b> (unidades) o se indica qué lo usa.'],0)+
-   msg('info','<b>Definición:</b> los parámetros son variables que se mantienen fijas para definir el producto. Las <b>tarifas</b> y el <b>seguimiento</b> no se mantienen aquí: son reportes (2.2.2).')+
+   msg('info','<b>Definición:</b> los parámetros son variables que se mantienen fijas para definir el producto. Solo se mantienen <b>tipos</b>: las unidades físicas (placas, contenedores, autómatas) se registran en la flota, y las <b>tarifas</b> y el <b>seguimiento</b> son reportes (2.2.2).')+
    `<div class="tabs">${tabs}</div><div class="tabbody">${INFO[key]?`<div class="infoline">${info(INFO[key])}</div>`:''}${crudView(cfg)}</div>`; }});
 
 /* ---------------------------------------------------------------- CATÁLOGOS */
 const PROD_CFG = {key:'prod',tabla:'productos',label:'Producto',prefix:'PROD',canDisable:true,
-  intro:'<b>Naturaleza del producto:</b> cada fila combina parámetros ya definidos. El origen y el destino no forman parte del producto: se eligen al asignar el ticket (Alcance). La tarifa sale del <a href="#/rtarifas">Reporte de tarifas</a>.',
-  cols:[{label:'Tipo de producto',k:'id'},{label:'Tipo de vehículo',k:'tv'},{label:'Tipo de carga',f:r=>esc(nomCG(r.tb))},{label:'Horario',f:r=>esc(r.th)},{label:'Protocolo',f:r=>esc(r.prot)},{label:'Tipo de servicio',f:r=>esc((servicioDe(r)||{}).nombre||r.ts)},{label:'Tarifa',f:r=>{const t=tarifaDe(r);return t?esc(t.id):'—'}},COL_ESTADO],
-  fields:[{k:'tv',label:'Tipo de vehículo',type:'select',opts:()=>TIPOS_VEHICULO.map(x=>[x,x]),req:1},{k:'tb',label:'Tipo de carga',type:'select',opts:todos('cargas',x=>x.material),req:1},{k:'th',label:'Horario',type:'select',opts:todos('horarios',horTxt),req:1},{k:'prot',label:'Protocolo',type:'select',opts:activos('protocolos',x=>x.nombre),req:1},{k:'ts',label:'Tipo de servicio',type:'select',opts:todos('servicios',x=>x.nombre+' ('+x.modalidad+')'),req:1},{k:'activo',label:'Estado',type:'estado',help:'ACTIVO exige compatibilidad y una tarifa vigente en el reporte.'}],
+  intro:'<b>Naturaleza del producto:</b> cada fila combina tipos ya definidos (vehículo, contenedor, carga, horario, protocolo y servicio); por eso ya no hace falta un catálogo de compatibilidad. El origen y el destino no forman parte del producto: se eligen al asignar el ticket (Alcance). La tarifa sale del <a href="#/rtarifas">Reporte de tarifas</a>.',
+  cols:[{label:'Tipo de producto',k:'id'},{label:'Tipo de vehículo',f:r=>esc(nomTV(r.tv))},{label:'Tipo de contenedor',f:r=>esc(nomTC(r.tc))},{label:'Tipo de carga',f:r=>esc(nomCG(r.tb))},{label:'Horario',f:r=>esc(r.th)},{label:'Protocolo',f:r=>esc(r.prot)},{label:'Tipo de servicio',f:r=>esc((servicioDe(r)||{}).nombre||r.ts)},{label:'Tarifa',f:r=>{const t=tarifaDe(r);return t?esc(t.id):'—'}},COL_ESTADO],
+  fields:[{k:'tv',label:'Tipo de vehículo',type:'select',opts:todos('tiposVehiculo',x=>x.nombre),req:1},{k:'tc',label:'Tipo de contenedor',type:'select',opts:todos('tiposContenedor',x=>x.nombre),req:1},{k:'tb',label:'Tipo de carga',type:'select',opts:todos('cargas',x=>x.material),req:1},{k:'th',label:'Horario',type:'select',opts:todos('horarios',horTxt),req:1},{k:'prot',label:'Protocolo',type:'select',opts:activos('protocolos',x=>x.nombre),req:1},{k:'ts',label:'Tipo de servicio',type:'select',opts:todos('servicios',x=>x.nombre+' ('+x.modalidad+')'),req:1},{k:'activo',label:'Estado',type:'estado',help:'ACTIVO exige compatibilidad y una tarifa vigente en el reporte.'}],
   validate:(v,row)=>{ const e={};
-    const dup=DB.productos.find(p=>p!==row&&p.tv===v.tv&&p.tb===v.tb&&p.th===v.th&&p.ts===v.ts&&v.tv&&v.tb&&v.th&&v.ts); if(dup) e.tv='Ya existe un producto con esta combinación ('+dup.id+')';
-    if(v.activo){ if(v.tv&&v.tb&&!DB.compat.some(c=>c.ok&&c.tb===v.tb&&c.tv===v.tv)) e.tb='No hay compatibilidad registrada entre este tipo de carga y este vehículo (Catálogo de compatibilidad)';
+    const dup=DB.productos.find(p=>p!==row&&p.tv===v.tv&&p.tc===v.tc&&p.tb===v.tb&&p.th===v.th&&p.ts===v.ts&&v.tv&&v.tc&&v.tb&&v.th&&v.ts); if(dup) e.tv='Ya existe un producto con esta combinación ('+dup.id+')';
+    if(v.activo){
+      if(v.tv&&!DB.vehiculos.some(u=>u.tipo===v.tv)) e.tv='No hay ningún vehículo de este tipo en la flota';
+      if(v.tc&&!DB.contenedores.some(c=>c.tipo===v.tc)) e.tc='No hay ningún contenedor de este tipo en la flota';
       const tar=row?tarifaDe(row):null; const s=by(DB.servicios,v.ts);
       if(!tar||!tarifaVigente(tar)) e.activo='Un producto ACTIVO necesita una tarifa vigente (revise el Reporte de tarifas)';
       else if(s&&tar.modalidad!==s.modalidad) e.ts='La tarifa del producto es '+tar.modalidad+' y el tipo de servicio es '+s.modalidad; }
     return e; },
   used:r=>[...DB.viajes.filter(v=>v.prod===r.id).map(v=>'Viaje '+v.id)]};
 route('productos',{title:'Catálogo de productos',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(){
-  return guide(['Los productos se arman combinando parámetros (no se escriben libremente).','No puede repetirse la misma combinación.','Un producto ACTIVO exige compatibilidad entre carga y vehículo, y una tarifa vigente (ver el reporte de tarifas).','Solo los productos ACTIVOS aparecen al asignar un ticket y en el catálogo web del cliente.'],0)+
+  return guide(['Los productos se arman combinando parámetros (no se escriben libremente).','No puede repetirse la misma combinación.','Un producto ACTIVO exige que exista flota de esos tipos y una tarifa vigente (ver el reporte de tarifas).','Solo los productos ACTIVOS aparecen al asignar un ticket y en el catálogo web del cliente.'],0)+
    `<div class="nat"><span class="natt">Naturaleza del producto</span>${crudView(PROD_CFG)}</div>`; }});
 
 const REGLA_CFG={key:'reg',tabla:'reglas',label:'Regla',prefix:'REG-',canDisable:false,
@@ -177,20 +181,37 @@ const PROT_CFG={key:'prot',tabla:'protocolos',label:'Protocolo',prefix:'PROT-',c
 route('protocolos',{title:'Catálogo de protocolos',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(){
   return guide(['Un protocolo es la secuencia de eventos de un producto o de un incidente.','Cada cambio genera una versión nueva (v1 → v2 …).','Un protocolo en uso no se elimina: se deshabilita y se crea una versión nueva.'],0)+crudView(PROT_CFG); }});
 
-const COMPAT_CFG={key:'cp',tabla:'compat',label:'Compatibilidad',prefix:'CP-',padLen:3,canDisable:false,
-  cols:[{label:'Código',k:'id'},{label:'Tipo de carga',f:r=>esc(nomCG(r.tb))},{label:'Contenedor',k:'tc'},{label:'Vehículo',k:'tv'},{label:'Compatible',f:r=>pill(r.ok?'Sí':'No')},{label:'Observación',k:'obs'}],
-  fields:[{k:'tb',label:'Tipo de carga',type:'select',opts:todos('cargas',x=>x.material),req:1},{k:'tc',label:'Tipo de contenedor',type:'select',opts:()=>tiposContenedor().map(x=>[x,x]),req:1},{k:'tv',label:'Tipo de vehículo',type:'select',opts:()=>TIPOS_VEHICULO.map(x=>[x,x]),req:1},{k:'ok',label:'Compatible',type:'bool',def:true},{k:'obs',label:'Observación',type:'text'}],
-  validate:(v,row)=>{ const e={}; const d=DB.compat.find(c=>c!==row&&c.tb===v.tb&&c.tc===v.tc&&c.tv===v.tv); if(d) e.tv='Combinación ya registrada ('+d.id+')'; if(v.ok===false&&!v.obs) e.obs='Indique el motivo cuando no es compatible'; return e; },
-  used:r=>[]};
-route('compat',{title:'Catálogo de compatibilidad',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(){
-  return guide(['Define qué tipo de carga puede ir en qué contenedor y en qué vehículo.','Al asignar un ticket, el sistema solo propone unidades y contenedores compatibles (REG-03).','Si no es compatible, se exige el motivo.'],0)+crudView(COMPAT_CFG); }});
-
 const TINC_CFG={key:'tinc',tabla:'tiposIncidente',label:'Tipo de incidente',prefix:'INC-',padLen:3,canDisable:true,
   cols:[{label:'Código',k:'id'},{label:'Tipo de incidente',k:'nombre'},{label:'Categoría',k:'categoria'},{label:'Severidad',k:'severidad'},{label:'Protocolo asociado',k:'protocolo'},COL_ESTADO],
   fields:[{k:'nombre',label:'Tipo de incidente',type:'text',req:1},{k:'categoria',label:'Categoría',type:'select',opts:()=>['Operativo','Vehículo','Seguridad'].map(x=>[x,x]),req:1},{k:'severidad',label:'Severidad',type:'select',opts:()=>['Baja','Media','Alta','Crítica'].map(x=>[x,x]),req:1},{k:'protocolo',label:'Protocolo de respuesta',type:'select',opts:activos('protocolos',x=>x.id+' · '+x.nombre),req:1},{k:'activo',label:'Estado',type:'estado'}],
   used:r=>DB.incidentes.filter(i=>i.tipo===r.id).map(i=>'Incidente '+i.id)};
 route('tincidentes',{title:'Tipos de incidente',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(){
   return guide(['Cada tipo de incidente tiene una severidad y un protocolo de respuesta.','Los incidentes de retraso se generan solos cuando un paso no se confirma dentro de la tolerancia (POL-04).'],0)+crudView(TINC_CFG); }});
+
+/* ---------------------------------------------------------------- FLOTA (recursos físicos) */
+const FLOTA_CFG = {
+  veh:{key:'fveh',tabla:'vehiculos',label:'Vehículo',prefix:'r-veh-',padLen:3,canDisable:true,
+    cols:[{label:'Código',k:'id'},{label:'Placa',k:'placa'},{label:'Tipo',f:r=>esc(nomTV(r.tipo))},{label:'Carga máx.',f:r=>n2((tvDe(r.tipo)||{}).cargaMax)+' kg'},{label:'Ejes',f:r=>(tvDe(r.tipo)||{}).ejes},ESTADO_UNIDAD],
+    fields:[{k:'placa',label:'Placa',type:'text',req:1,ph:'ABC123'},{k:'tipo',label:'Tipo de vehículo',type:'select',opts:todos('tiposVehiculo',x=>x.nombre),req:1,help:'La unidad hereda la carga máxima, los ejes y el consumo de su tipo.'},{k:'estado',label:'Estado',type:'select',opts:estOpts,req:1,def:'OK'}],
+    validate:(v,row)=>{ const e={}; if(v.placa&&!/^[A-Za-z0-9]{6}$/.test(v.placa)) e.placa='La placa tiene 6 caracteres alfanuméricos'; else if(DB.vehiculos.some(x=>x!==row&&x.placa.toUpperCase()===String(v.placa).toUpperCase())) e.placa='La placa '+v.placa+' ya está registrada'; return e; },
+    onSave:r=>{ r.placa=String(r.placa).toUpperCase(); },
+    used:r=>DB.viajes.filter(v=>v.veh===r.id).map(v=>'Viaje '+v.id)},
+  con:{key:'fcon',tabla:'contenedores',label:'Contenedor',prefix:'r-cont-',padLen:3,canDisable:true,
+    cols:[{label:'Código',k:'id'},{label:'Tipo',f:r=>esc(nomTC(r.tipo))},{label:'N° máx. tickets',f:r=>(tcDe(r.tipo)||{}).tickets},{label:'Carga máx.',f:r=>n2((tcDe(r.tipo)||{}).cargaMax)+' kg'},{label:'Temperatura',f:r=>esc((tcDe(r.tipo)||{}).temp)},ESTADO_UNIDAD],
+    fields:[{k:'tipo',label:'Tipo de contenedor',type:'select',opts:todos('tiposContenedor',x=>x.nombre),req:1,help:'El contenedor hereda tickets, carga máxima y temperatura de su tipo.'},{k:'estado',label:'Estado',type:'select',opts:estOpts,req:1,def:'OK'}],
+    used:r=>DB.viajes.filter(v=>v.cont===r.id).map(v=>'Viaje '+v.id)},
+  aut:{key:'faut',tabla:'automatas',label:'Autómata',prefix:'AUT-',padLen:3,canDisable:true,
+    cols:[{label:'Código',k:'id'},{label:'Nombre',k:'nombre'},{label:'Tipo',f:r=>esc((taDe(r.tipo)||{}).nombre)},ESTADO_UNIDAD],
+    fields:[{k:'nombre',label:'Nombre',type:'text',req:1},{k:'tipo',label:'Tipo de autómata',type:'select',opts:todos('tiposAutomata',x=>x.nombre),req:1},{k:'estado',label:'Estado',type:'select',opts:estOpts,req:1,def:'OK'}],
+    validate:(v,row)=>DB.automatas.some(x=>x!==row&&norm(x.nombre)===norm(v.nombre))?{nombre:'Ya existe un autómata con ese nombre'}:{},
+    used:r=>[]}
+};
+const FLOTA_TABS = [['veh','Vehículos'],['con','Contenedores'],['aut','Autómatas']];
+route('flota',{title:'Registro de flota',crumb:'2.2 Operativo › 2.2.1 Data-entry › 2.2.1.3 Registro de flota',view(arg){
+  const key = FLOTA_CFG[arg]?arg:'veh', cfg = FLOTA_CFG[key];
+  const tabs = FLOTA_TABS.map(([k,l])=>`<a class="tab ${k===key?'on':''}" href="#/flota/${k}">${l}</a>`).join('');
+  return msg('info','Aquí se registran las <b>unidades físicas</b> (placa, código, estado). Sus características estándar salen de los <b>tipos</b> definidos en Parámetros. Una unidad en MANTENIMIENTO no se asigna a ningún viaje.')+
+   `<div class="tabs">${tabs}</div><div class="tabbody">${crudView(cfg)}</div>`; }});
 
 /* ---------------------------------------------------------------- DATA-ENTRY: CLIENTES */
 const CLI_CFG={key:'cli',tabla:'clientes',label:'Cliente',idEditable:true,idPh:'DNI (8) o RUC (11)',canDisable:false,
@@ -274,7 +295,7 @@ function t2res(d){
   if(!d.res.viaje) return msg('bad','✖ '+d.res.error);
   const v=d.res.viaje, veh=vehDe(v), con=by(DB.contenedores,v.cont), ver=d.res.ver, pl=planViaje(v), p=by(DB.productos,v.prod), i=prodInfo(p), exp=ver.express;
   const fila=(n,unit,cap,uso,sol)=>`<tr><td>${n}</td><td>${n2(cap)} ${unit}</td><td>${n2(uso)} ${unit}</td><td>${n2(sol)} ${unit}</td><td class="${(cap-uso-sol)<0?'neg':''}">${n2(cap-uso-sol)} ${unit}</td><td style="min-width:160px">${bar(Math.min(cap,uso+sol),cap,unit)}</td></tr>`;
-  return `<div class="cards2"><div class="mini"><b>Viaje ${esc(v.id)}${d.res.nuevo?' <i>(nuevo)</i>':''}</b><br>Unidad: ${esc(veh.id)} · ${esc(veh.placa)} (${esc(veh.tipo)})<br>Contenedor: ${esc(con.id)} · ${esc(con.tipo)}<br>Salida: ${diaDe(v.fecha)} ${dmy(v.fecha)} ${hhmm(pl.sal)}<br>Llegada estimada: ${hhmm(pl.lle)} <small>(salida + ${pl.horas} h del alcance)</small></div>
+  return `<div class="cards2"><div class="mini"><b>Viaje ${esc(v.id)}${d.res.nuevo?' <i>(nuevo)</i>':''}</b><br>Unidad: ${esc(veh.id)} · ${esc(veh.placa)} (${esc(nomTV(veh.tipo))})<br>Contenedor: ${esc(con.id)} · ${esc(nomTC(con.tipo))}<br>Salida: ${diaDe(v.fecha)} ${dmy(v.fecha)} ${hhmm(pl.sal)}<br>Llegada estimada: ${hhmm(pl.lle)} <small>(salida + ${pl.horas} h del alcance)</small></div>
    <div class="mini"><b>Servicio y protocolo</b><br>${esc(i.ts.nombre)} · ${esc(i.ts.modalidad)}<br>${esc(i.prot.id)} · ${esc(i.prot.nombre)}<br><small>${esc(i.prot.secuencia)}</small>${exp?'<br><b>Express:</b> reserva exclusiva de todo el contenedor ('+ver.cap.n+' tickets).':''}</div></div>
    <table class="tbl"><thead><tr><th>Dimensión</th><th>Capacidad</th><th>Ya comprometido</th><th>${exp?'Se reservará':'Solicitado'}</th><th>Disponible después</th><th>Ocupación</th></tr></thead><tbody>${fila('Tickets (m³)','tickets',ver.cap.n,ver.uso.n,ver.need)}${fila('Peso','kg',ver.cap.kg,ver.uso.kg,d.res.esp.kg)}</tbody></table>
    ${d.res.ok?msg('ok','✔ El espacio cabe en tickets y en peso. Puede continuar.'):msg('bad','✖ '+d.res.error+' <br><small>El ticket no se genera. Pruebe otra fecha o reduzca las unidades.</small>')}`;
@@ -325,7 +346,7 @@ ACT['t-new']=()=>{ UI.draft=newDraft(); go('ticket/1'); render(); };
 const BRANDS = ['Visa','Mastercard','American Express','Diners Club'];
 function ordenResumen(t){
   const v=by(DB.viajes,t.viaje), p=by(DB.productos,v.prod), al=by(DB.alcances,v.alcance), pl=planViaje(v);
-  return {v,p,al,pl,html:`Bienes(${t.unidades})<br>Unidad: ${esc(vehDe(v).placa)} (${esc(vehDe(v).tipo)})<br>Descripción: ${esc(nomCG(t.tb))} · ${t.n} ticket(s)<br>Ruta: ${esc(al.origen)}-${esc(al.destino)}<br>Monto final a pagar: <b>${money(t.total)}</b>`}; }
+  return {v,p,al,pl,html:`Bienes(${t.unidades})<br>Unidad: ${esc(vehDe(v).placa)} (${esc(nomTV(vehDe(v).tipo))})<br>Descripción: ${esc(nomCG(t.tb))} · ${t.n} ticket(s)<br>Ruta: ${esc(al.origen)}-${esc(al.destino)}<br>Monto final a pagar: <b>${money(t.total)}</b>`}; }
 function payMethodHTML(t,ctx){
   if(reservaVencida(t)||t.estado==='VENCIDO') return vencidoHTML(t);
   const o=ordenResumen(t), pl=o.pl;
@@ -391,9 +412,9 @@ route('disponibilidad',{title:'Reporte de disponibilidad de vehículos',crumb:'2
   const f=UI.dispF||ymd(AHORA);
   const rows=DB.vehiculos.map(u=>{
     const v=DB.viajes.find(x=>x.veh===u.id&&x.fecha===f);
-    if(!v) return `<tr><td>${esc(u.placa)}<br><small>${esc(u.id)}</small></td><td>${esc(u.tipo)}</td><td>${pill(u.estado)}</td><td colspan="3">${u.estado==='OK'?pill('LIBRE')+' sin viaje asignado':'No disponible por mantenimiento'}</td></tr>`;
+    if(!v) return `<tr><td>${esc(u.placa)}<br><small>${esc(u.id)}</small></td><td>${esc(nomTV(u.tipo))}</td><td>${pill(u.estado)}</td><td colspan="3">${u.estado==='OK'?pill('LIBRE')+' sin viaje asignado':'No disponible por mantenimiento'}</td></tr>`;
     const cap=viajeCap(v), uso=viajeUso(v), p=by(DB.productos,v.prod);
-    return `<tr><td>${esc(u.placa)}<br><small>${esc(u.id)}</small></td><td>${esc(u.tipo)}</td><td>${pill(u.estado)}</td><td>${esc(v.id)} · ${esc(v.cont)}<br><small>${esc(nomAL(v.alcance))} · ${esc(nomCG(p.tb))}${esExpress(p)?' · Express':''}</small></td><td>${bar(uso.n,cap.n,'tickets')}</td><td>${bar(uso.kg,cap.kg,'kg')}</td></tr>`; }).join('');
+    return `<tr><td>${esc(u.placa)}<br><small>${esc(u.id)}</small></td><td>${esc(nomTV(u.tipo))}</td><td>${pill(u.estado)}</td><td>${esc(v.id)} · ${esc(v.cont)}<br><small>${esc(nomAL(v.alcance))} · ${esc(nomCG(p.tb))}${esExpress(p)?' · Express':''}</small></td><td>${bar(uso.n,cap.n,'tickets')}</td><td>${bar(uso.kg,cap.kg,'kg')}</td></tr>`; }).join('');
   return guide(['Elija la fecha.','Cada unidad aparece como LIBRE, con viaje asignado o en MANTENIMIENTO.','Si tiene viaje, se ve cuántos tickets (m³) y kg ya están comprometidos en su contenedor.','Un ticket nuevo actualiza esta vista al instante.'],0)+
    `<div class="toolbar"><label>Fecha: <input type="date" value="${f}" data-change="disp-date"></label> <small>Fechas con viaje: ${[...new Set(DB.viajes.map(v=>v.fecha))].sort().map(dmy).join(' · ')}</small></div>
     <table class="tbl"><thead><tr><th>Placa</th><th>Tipo</th><th>Estado</th><th>Viaje del día</th><th>Tickets (m³)</th><th>Peso</th></tr></thead><tbody>${rows}</tbody></table>`; }});
@@ -463,7 +484,7 @@ ACT['seg-confirm']=el=>{
   const t=by(DB.tickets,el.dataset.id), v=by(DB.viajes,t.viaje), n=siguientePaso(v,t); if(!n) return;
   const late=el.dataset.late==='1', esp=esperadoPaso(v,n), real=addMin(esp,late?45:0), tol=secuenciaDe(v).tolerancia, ps=by(PASOS,n,'n');
   let por=ps.por;
-  if(ps.por.startsWith('Autómata')){ const au=DB.automatas.find(a=>a.estado==='OK'); if(!au){ toast('✖ No hay ningún autómata disponible (todos en mantenimiento): el paso queda pendiente','bad'); return; } por=au.id+' · '+au.nombre+' ('+ps.por.replace('Autómata de ','')+')'; }
+  if(ps.por.startsWith('Autómata')){ const au=DB.automatas.find(a=>a.estado==='OK' && (taDe(a.tipo)||{}).funcion===ps.aut); if(!au){ toast('✖ No hay un autómata de '+ps.aut+' disponible (todos en mantenimiento): el paso queda pendiente','bad'); return; } por=au.id+' · '+au.nombre+' ('+taDe(au.tipo).nombre.toLowerCase()+')'; }
   t.hist.push({paso:n,real,por}); t.paso=n;
   if(n>=2) t.estado='EN RUTA'; if(n>=6) t.estado='ENTREGADO'; if(n===7) t.estado='CERRADO';
   toast('✔ Paso '+n+' ('+ps.nombre+') confirmado por '+por);

@@ -15,8 +15,8 @@ function portalLayout(cur,inner){
 }
 const precioDe = p => { const t=tarifaDe(p); if(!t) return ''; return t.base==='fija'?money(t.valor)+' por envío exclusivo':money(t.valor)+' por ticket (1 m³)'; };
 route('p-catalogo',{title:'',view(){
-  const cards=DB.productos.filter(p=>p.activo&&tarifaVigente(tarifaDe(p))).map(p=>{ const i=prodInfo(p), cp=DB.compat.find(c=>c.ok&&c.tb===p.tb&&c.tv===p.tv), exp=esExpress(p);
-    return `<div class="pcard"><div class="pcico">${ICON[p.tb]||'📦'}</div><h3>Carga ${esc(i.tb.material.toLowerCase())}</h3><p class="pdesc">Viaja en ${esc(p.tv.toLowerCase())}${cp?' con contenedor '+esc(cp.tc.toLowerCase()):''}. Sale los <b>${i.th.diaSalida}</b> a las ${h12(i.th.hSalida)}.</p>
+  const cards=DB.productos.filter(p=>p.activo&&tarifaVigente(tarifaDe(p))).map(p=>{ const i=prodInfo(p), exp=esExpress(p);
+    return `<div class="pcard"><div class="pcico">${ICON[p.tb]||'📦'}</div><h3>Carga ${esc(i.tb.material.toLowerCase())}</h3><p class="pdesc">Viaja en ${esc(nomTV(p.tv).toLowerCase())} con contenedor ${esc(nomTC(p.tc).toLowerCase())}. Sale los <b>${i.th.diaSalida}</b> a las ${h12(i.th.hSalida)}.</p>
      <div class="ptags"><span class="ptag ${exp?'exp':''}">${esc(i.ts.modalidad)}</span><span class="ptag">Temperatura ${esc(i.tb.temp)}</span><span class="ptag">${esc(i.prot.nombre)}</span></div>
      ${exp?'<p class="pmute">Servicio exclusivo: el contenedor viaja solo con tu carga.</p>':''}
      <div class="pprice">Desde <b>${precioDe(p)}</b></div><a class="pbtn" href="#/p-cotizar" data-act="p-pick" data-prod="${p.id}">Cotizar este servicio</a></div>`; }).join('');

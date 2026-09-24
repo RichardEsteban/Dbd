@@ -1,6 +1,8 @@
 /* ============================================================
    DATOS DE EJEMPLO EN MEMORIA (no hay base de datos).
-   - PARÁMETROS: vehículo, carga, contenedor, alcance, horario, tipo de servicio, autómata.
+   - PARÁMETROS (solo TIPOS, variables fijas que definen el producto): tipo de vehículo, tipo de carga,
+     tipo de contenedor, alcance, horario, tipo de servicio y tipo de autómata.
+   - FLOTA (recursos físicos, Data-entry): vehículos con placa, contenedores y autómatas, cada uno con su estado.
    - TARIFAS y SEGUIMIENTO: son REPORTES (no se mantienen como parámetros).
    - TICKET: 1 ticket = 1 m³ mínimo de espacio dentro de un contenedor. Un envío compra
      tantos tickets como m³ ocupa (redondeado hacia arriba) y además debe respetar los kg.
@@ -11,31 +13,24 @@ const HOY = new Date('2026-06-24T10:15:00');           // reloj simulado del pro
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
 const PASOS = [
-  {n:1, nombre:'Recibido',   desc:'La carga entra al contenedor y el ticket se valida', por:'Autómata de carga',   ref:['sal',-60]},
+  {n:1, nombre:'Recibido',   desc:'La carga entra al contenedor y el ticket se valida', por:'Autómata de carga',   ref:['sal',-60], aut:'carga'},
   {n:2, nombre:'Despachado', desc:'La unidad sale del origen',                           por:'Sistema',             ref:['sal',0]},
   {n:3, nombre:'En tránsito',desc:'La unidad pasa un punto de control de la ruta',       por:'Sistema',             ref:['pct',0.25]},
   {n:4, nombre:'En parada',  desc:'Llega a una parada intermedia del alcance',           por:'Sistema',             ref:['pct',0.55]},
   {n:5, nombre:'En reparto', desc:'Llega a la ciudad de destino',                        por:'Sistema',             ref:['lle',-30]},
-  {n:6, nombre:'Entregado',  desc:'La carga llega a la terminal de destino',                por:'Autómata de descarga',ref:['lle',0]},
+  {n:6, nombre:'Entregado',  desc:'La carga llega a la terminal de destino',                por:'Autómata de descarga',ref:['lle',0], aut:'descarga'},
   {n:7, nombre:'Cerrado',    desc:'El ticket se cierra con conformidad',                 por:'Sistema',             ref:['lle',15]}
 ];
-const TIPOS_VEHICULO = ['Camión','Furgoneta','Cisterna','Blindado'];
 const MEDIOS = {tarjeta:'Tarjeta de crédito', pagoefectivo:'Transferencia y depósito en efectivo (PagoEfectivo)', banco:'Pago en bancos (BCP)'};
 
 function seed(){
   return {
-    /* ---------- PARÁMETROS ---------- */
-    vehiculos:[
-      {id:'r-veh-001', placa:'XYZ123', tipo:'Camión',    ejes:2, cargaMax:5000,  consumo:4,  estado:'OK'},
-      {id:'r-veh-002', placa:'ABC345', tipo:'Furgoneta', ejes:4, cargaMax:12000, consumo:12, estado:'OK'},
-      {id:'r-veh-003', placa:'FGC576', tipo:'Cisterna',  ejes:3, cargaMax:9000,  consumo:15, estado:'OK'},
-      {id:'r-veh-004', placa:'DEF890', tipo:'Furgoneta', ejes:2, cargaMax:8000,  consumo:8,  estado:'MANTENIMIENTO'},
-      {id:'r-veh-005', placa:'BCD456', tipo:'Camión',    ejes:3, cargaMax:6000,  consumo:6,  estado:'OK'},
-      {id:'r-veh-006', placa:'GHJ789', tipo:'Furgoneta', ejes:2, cargaMax:10000, consumo:10, estado:'OK'},
-      {id:'r-veh-007', placa:'KLM012', tipo:'Cisterna',  ejes:3, cargaMax:10000, consumo:16, estado:'OK'},
-      {id:'r-veh-008', placa:'BLD001', tipo:'Blindado',  ejes:3, cargaMax:7000,  consumo:14, estado:'OK'},
-      {id:'r-veh-009', placa:'NPQ345', tipo:'Camión',    ejes:2, cargaMax:5500,  consumo:5,  estado:'OK'},
-      {id:'r-veh-010', placa:'BLD002', tipo:'Blindado',  ejes:3, cargaMax:7000,  consumo:14, estado:'OK'}
+    /* ---------- PARÁMETROS (solo tipos) ---------- */
+    tiposVehiculo:[                            // categorías generales con sus características estándar
+      {id:'TV-001', nombre:'Camión',    ejes:2, cargaMax:5500,  consumo:5},
+      {id:'TV-002', nombre:'Furgoneta', ejes:2, cargaMax:10000, consumo:10},
+      {id:'TV-003', nombre:'Cisterna',  ejes:3, cargaMax:10000, consumo:16},
+      {id:'TV-004', nombre:'Blindado',  ejes:3, cargaMax:7000,  consumo:14}
     ],
     cargas:[                                   // "Tipo de carga": volumen y peso POR UNIDAD (bulto)
       {id:'CG-001', material:'Perecible',   volumen:0.5, peso:60,  temp:'−12 °C'},
@@ -46,18 +41,13 @@ function seed(){
       {id:'CG-006', material:'Medicamentos',volumen:0.05,peso:8,   temp:'2 a 8 °C'},
       {id:'CG-007', material:'Dinero en efectivo', volumen:0.05, peso:25, temp:'ambiente'}
     ],
-    contenedores:[                             // tickets = m³ (1 ticket = 1 m³)
-      {id:'r-cont-001', tipo:'Freezer',    material:'MC-1', tickets:36, cargaMax:4500, temp:'−20 / 10 °C', estado:'OK'},
-      {id:'r-cont-002', tipo:'Anti-shock', material:'MC-2', tickets:60, cargaMax:8000, temp:'ambiente',    estado:'OK'},
-      {id:'r-cont-003', tipo:'Hermético',  material:'MC-3', tickets:30, cargaMax:6000, temp:'−10 / 5 °C',  estado:'OK'},
-      {id:'r-cont-004', tipo:'Blindado',   material:'MC-4', tickets:20, cargaMax:3000, temp:'ambiente',    estado:'MANTENIMIENTO'},
-      {id:'r-cont-005', tipo:'Freezer',    material:'MC-1', tickets:30, cargaMax:4000, temp:'−20 / 10 °C', estado:'OK'},
-      {id:'r-cont-006', tipo:'Seco',       material:'MC-5', tickets:48, cargaMax:9000, temp:'ambiente',    estado:'OK'},
-      {id:'r-cont-007', tipo:'Refrigerado',material:'MC-6', tickets:24, cargaMax:3500, temp:'2 / 8 °C',    estado:'OK'},
-      {id:'r-cont-008', tipo:'Blindado',   material:'MC-4', tickets:10, cargaMax:4000, temp:'ambiente',    estado:'OK'},
-      {id:'r-cont-009', tipo:'Hermético',  material:'MC-3', tickets:30, cargaMax:6000, temp:'−10 / 5 °C',  estado:'OK'},
-      {id:'r-cont-010', tipo:'Anti-shock', material:'MC-2', tickets:40, cargaMax:6000, temp:'ambiente',    estado:'OK'},
-      {id:'r-cont-011', tipo:'Blindado',   material:'MC-4', tickets:10, cargaMax:4000, temp:'ambiente',    estado:'OK'}
+    tiposContenedor:[                          // tickets = m³ (1 ticket = 1 m³)
+      {id:'TC-001', nombre:'Freezer',     material:'MC-1', tickets:36, cargaMax:4500, temp:'−20 / 10 °C'},
+      {id:'TC-002', nombre:'Anti-shock',  material:'MC-2', tickets:60, cargaMax:8000, temp:'ambiente'},
+      {id:'TC-003', nombre:'Hermético',   material:'MC-3', tickets:30, cargaMax:6000, temp:'−10 / 5 °C'},
+      {id:'TC-004', nombre:'Blindado',    material:'MC-4', tickets:10, cargaMax:4000, temp:'ambiente'},
+      {id:'TC-005', nombre:'Seco',        material:'MC-5', tickets:48, cargaMax:9000, temp:'ambiente'},
+      {id:'TC-006', nombre:'Refrigerado', material:'MC-6', tickets:24, cargaMax:3500, temp:'2 / 8 °C'}
     ],
     alcances:[
       {id:'AL-001', origen:'Lima',     destino:'Chiclayo', via:'Asfaltada',      paradas:'Huacho, Trujillo', km:768,  horas:12},
@@ -97,11 +87,41 @@ function seed(){
       {id:'SER-007', nombre:'Medicamentos express', modalidad:'Express',  base:'fija'},
       {id:'SER-008', nombre:'Traslado de valores express', modalidad:'Express', base:'fija'}
     ],
+    tiposAutomata:[
+      {id:'TA-001', nombre:'Brazo robótico de carga',    funcion:'carga'},
+      {id:'TA-002', nombre:'Brazo robótico de descarga', funcion:'descarga'}
+    ],
+    /* ---------- FLOTA (recursos físicos: Data-entry) ---------- */
+    vehiculos:[
+      {id:'r-veh-001', placa:'XYZ123', tipo:'TV-001', estado:'OK'},
+      {id:'r-veh-002', placa:'ABC345', tipo:'TV-002', estado:'OK'},
+      {id:'r-veh-003', placa:'FGC576', tipo:'TV-003', estado:'OK'},
+      {id:'r-veh-004', placa:'DEF890', tipo:'TV-002', estado:'MANTENIMIENTO'},
+      {id:'r-veh-005', placa:'BCD456', tipo:'TV-001', estado:'OK'},
+      {id:'r-veh-006', placa:'GHJ789', tipo:'TV-002', estado:'OK'},
+      {id:'r-veh-007', placa:'KLM012', tipo:'TV-003', estado:'OK'},
+      {id:'r-veh-008', placa:'BLD001', tipo:'TV-004', estado:'OK'},
+      {id:'r-veh-009', placa:'NPQ345', tipo:'TV-001', estado:'OK'},
+      {id:'r-veh-010', placa:'BLD002', tipo:'TV-004', estado:'OK'}
+    ],
+    contenedores:[
+      {id:'r-cont-001', tipo:'TC-001', estado:'OK'},
+      {id:'r-cont-002', tipo:'TC-002', estado:'OK'},
+      {id:'r-cont-003', tipo:'TC-003', estado:'OK'},
+      {id:'r-cont-004', tipo:'TC-004', estado:'MANTENIMIENTO'},
+      {id:'r-cont-005', tipo:'TC-001', estado:'OK'},
+      {id:'r-cont-006', tipo:'TC-005', estado:'OK'},
+      {id:'r-cont-007', tipo:'TC-006', estado:'OK'},
+      {id:'r-cont-008', tipo:'TC-004', estado:'OK'},
+      {id:'r-cont-009', tipo:'TC-003', estado:'OK'},
+      {id:'r-cont-010', tipo:'TC-002', estado:'OK'},
+      {id:'r-cont-011', tipo:'TC-004', estado:'OK'}
+    ],
     automatas:[
-      {id:'AUT-001', nombre:'Automata A', rol:'Brazo Robótico', estado:'OK'},
-      {id:'AUT-002', nombre:'Autómata B', rol:'Brazo Robótico', estado:'OK'},
-      {id:'AUT-003', nombre:'Autómata C', rol:'Brazo Robótico', estado:'OK'},
-      {id:'AUT-004', nombre:'Autómata D', rol:'Brazo Robótico', estado:'MANTENIMIENTO'}
+      {id:'AUT-001', nombre:'Autómata A', tipo:'TA-001', estado:'OK'},
+      {id:'AUT-002', nombre:'Autómata B', tipo:'TA-002', estado:'OK'},
+      {id:'AUT-003', nombre:'Autómata C', tipo:'TA-001', estado:'OK'},
+      {id:'AUT-004', nombre:'Autómata D', tipo:'TA-002', estado:'MANTENIMIENTO'}
     ],
     /* ---------- CATÁLOGOS ---------- */
     protocolos:[
@@ -114,7 +134,7 @@ function seed(){
     reglas:[
       {id:'REG-01', nombre:'Capacidad del viaje',       descripcion:'El ticket solo se genera si el espacio solicitado cabe en tickets (m³) Y en peso (kg).', accion:'Rechazar ticket', activo:true},
       {id:'REG-02', nombre:'Vencimiento de la reserva', descripcion:'Un ticket reservado que no se paga a tiempo libera su espacio.', accion:'Liberar espacio (batch)', activo:true},
-      {id:'REG-03', nombre:'Compatibilidad',            descripcion:'El contenedor y el vehículo deben ser compatibles con el tipo de carga.', accion:'Rechazar asignación', activo:true},
+      {id:'REG-03', nombre:'Tipo de unidad del producto', descripcion:'El viaje solo usa un vehículo y un contenedor del tipo que define el producto (y que estén operativos).', accion:'Rechazar asignación', activo:true},
       {id:'REG-04', nombre:'Día de salida',             descripcion:'La fecha del viaje debe coincidir con el día de salida del horario del producto.', accion:'Rechazar fecha', activo:true},
       {id:'REG-05', nombre:'Orden de los pasos',        descripcion:'Un paso solo se confirma si el anterior ya fue confirmado.', accion:'Bloquear paso', activo:true},
       {id:'REG-06', nombre:'Express exclusivo',         descripcion:'El servicio Express es exclusivo de una sola carga, cualquiera sea su tipo: reserva todo el contenedor y solo se permite en un viaje sin otros tickets.', accion:'Rechazar reserva', activo:true}
@@ -125,34 +145,24 @@ function seed(){
       {id:'POL-03', nombre:'Cancelación',         descripcion:'Horas antes de la salida hasta las que se cancela sin cargo.', valor:'24', activo:true},
       {id:'POL-04', nombre:'Tolerancia entre pasos', descripcion:'Minutos de tolerancia para confirmar un paso antes de generar un incidente de retraso.', valor:'30', activo:true}
     ],
-    compat:[                                    // tipo de carga ↔ tipo de contenedor ↔ tipo de vehículo
-      {id:'CP-001', tb:'CG-001', tc:'Freezer',    tv:'Camión',    ok:true, obs:'Cadena de frío'},
-      {id:'CP-002', tb:'CG-002', tc:'Anti-shock', tv:'Furgoneta', ok:true, obs:''},
-      {id:'CP-003', tb:'CG-003', tc:'Hermético',  tv:'Cisterna',  ok:true, obs:'Presión controlada'},
-      {id:'CP-004', tb:'CG-004', tc:'Blindado',   tv:'Furgoneta', ok:true, obs:'Requiere unidad blindada'},
-      {id:'CP-005', tb:'CG-005', tc:'Seco',        tv:'Camión',    ok:true, obs:''},
-      {id:'CP-006', tb:'CG-006', tc:'Refrigerado', tv:'Furgoneta', ok:true, obs:'Cadena de frío 2 a 8 °C'},
-      {id:'CP-007', tb:'CG-007', tc:'Blindado',    tv:'Blindado',  ok:true, obs:'Contenedor y unidad blindados; entrega contra firma'},
-      {id:'CP-008', tb:'CG-007', tc:'Seco',        tv:'Camión',    ok:false,obs:'El dinero solo viaja en contenedor y unidad blindados'}
-    ],
     tiposIncidente:[
       {id:'INC-001', nombre:'Retraso en ruta',  categoria:'Operativo', severidad:'Baja',    protocolo:'PROT-001', activo:true},
       {id:'INC-002', nombre:'Falla mecánica',   categoria:'Vehículo',  severidad:'Media',   protocolo:'PROT-003', activo:true},
       {id:'INC-003', nombre:'Derrame de carga', categoria:'Seguridad', severidad:'Crítica', protocolo:'PROT-004', activo:true},
       {id:'INC-004', nombre:'Robo o desvío',    categoria:'Seguridad', severidad:'Crítica', protocolo:'PROT-004', activo:false}
     ],
-    productos:[                                 // combinación de parámetros (la tarifa sale del reporte de tarifas)
-      {id:'PROD01', tv:'Camión',    tb:'CG-001', th:'HOR-002', prot:'PROT-001', ts:'SER-001', activo:true},
-      {id:'PROD02', tv:'Furgoneta', tb:'CG-002', th:'HOR-001', prot:'PROT-001', ts:'SER-002', activo:true},
-      {id:'PROD03', tv:'Cisterna',  tb:'CG-003', th:'HOR-003', prot:'PROT-002', ts:'SER-003', activo:true},
-      {id:'PROD04', tv:'Furgoneta', tb:'CG-004', th:'HOR-004', prot:'PROT-002', ts:'SER-004', activo:false},
-      {id:'PROD05', tv:'Camión',    tb:'CG-001', th:'HOR-005', prot:'PROT-001', ts:'SER-001', activo:true},
-      {id:'PROD06', tv:'Camión',    tb:'CG-005', th:'HOR-006', prot:'PROT-001', ts:'SER-005', activo:true},
-      {id:'PROD07', tv:'Camión',    tb:'CG-005', th:'HOR-007', prot:'PROT-001', ts:'SER-005', activo:true},
-      {id:'PROD08', tv:'Furgoneta', tb:'CG-006', th:'HOR-005', prot:'PROT-001', ts:'SER-006', activo:true},
-      {id:'PROD09', tv:'Furgoneta', tb:'CG-006', th:'HOR-006', prot:'PROT-001', ts:'SER-007', activo:true},
-      {id:'PROD10', tv:'Blindado',  tb:'CG-007', th:'HOR-008', prot:'PROT-005', ts:'SER-008', activo:true},
-      {id:'PROD11', tv:'Blindado',  tb:'CG-007', th:'HOR-009', prot:'PROT-005', ts:'SER-008', activo:true}
+    productos:[                                 // naturaleza del producto: combinación de tipos (la tarifa sale del reporte de tarifas)
+      {id:'PROD01', tv:'TV-001', tc:'TC-001', tb:'CG-001', th:'HOR-002', prot:'PROT-001', ts:'SER-001', activo:true},
+      {id:'PROD02', tv:'TV-002', tc:'TC-002', tb:'CG-002', th:'HOR-001', prot:'PROT-001', ts:'SER-002', activo:true},
+      {id:'PROD03', tv:'TV-003', tc:'TC-003', tb:'CG-003', th:'HOR-003', prot:'PROT-002', ts:'SER-003', activo:true},
+      {id:'PROD04', tv:'TV-002', tc:'TC-004', tb:'CG-004', th:'HOR-004', prot:'PROT-002', ts:'SER-004', activo:false},
+      {id:'PROD05', tv:'TV-001', tc:'TC-001', tb:'CG-001', th:'HOR-005', prot:'PROT-001', ts:'SER-001', activo:true},
+      {id:'PROD06', tv:'TV-001', tc:'TC-005', tb:'CG-005', th:'HOR-006', prot:'PROT-001', ts:'SER-005', activo:true},
+      {id:'PROD07', tv:'TV-001', tc:'TC-005', tb:'CG-005', th:'HOR-007', prot:'PROT-001', ts:'SER-005', activo:true},
+      {id:'PROD08', tv:'TV-002', tc:'TC-006', tb:'CG-006', th:'HOR-005', prot:'PROT-001', ts:'SER-006', activo:true},
+      {id:'PROD09', tv:'TV-002', tc:'TC-006', tb:'CG-006', th:'HOR-006', prot:'PROT-001', ts:'SER-007', activo:true},
+      {id:'PROD10', tv:'TV-004', tc:'TC-004', tb:'CG-007', th:'HOR-008', prot:'PROT-005', ts:'SER-008', activo:true},
+      {id:'PROD11', tv:'TV-004', tc:'TC-004', tb:'CG-007', th:'HOR-009', prot:'PROT-005', ts:'SER-008', activo:true}
     ],
     /* ---------- REPORTE DE TARIFAS (datos de consulta, no parámetro) ---------- */
     tarifas:[
@@ -210,6 +220,8 @@ const dmy = s => { const [y,m,d]=s.split('-'); return d+'/'+m+'/'+y; };
 const diaDe = s => DIAS[new Date(s+'T12:00:00').getDay()];
 const addMin = (d,m) => new Date(d.getTime()+m*60000);
 const h12 = t => { const [h,m]=t.split(':').map(Number); return ((h+11)%12+1)+':'+pad(m)+' '+(h<12?'AM':'PM'); };
+const tvDe = id => by(DB.tiposVehiculo,id), tcDe = id => by(DB.tiposContenedor,id), taDe = id => by(DB.tiposAutomata,id);
+const nomTV = id => (tvDe(id)||{nombre:id}).nombre, nomTC = id => (tcDe(id)||{nombre:id}).nombre;
 const BASE_TXT = {ticket:'Por espacio comprometido (m³/kg)', fija:'Tarifa fija'};
 
 /* ---------- cálculos del negocio ---------- */
@@ -226,13 +238,13 @@ const esExpress = p => { const s=servicioDe(p); return !!s && s.modalidad==='Exp
 const tarifaDe = p => DB.tarifas.find(t=>t.prod===p.id);
 const tarifaVigente = (t,fecha) => !!t && (fecha||ymd(HOY))>=t.desde && (fecha||ymd(HOY))<=t.hasta;
 
-function viajeCap(v){ const c=by(DB.contenedores,v.cont), u=by(DB.vehiculos,v.veh); return { n:c.tickets, kg:Math.min(c.cargaMax,u.cargaMax) }; }
+function viajeCap(v){ const c=tcDe(by(DB.contenedores,v.cont).tipo), u=tvDe(by(DB.vehiculos,v.veh).tipo); return { n:c.tickets, kg:Math.min(c.cargaMax,u.cargaMax) }; }   // capacidad = la del tipo (estándar)
 function ticketsDe(v){ return DB.tickets.filter(t => t.viaje===v.id && !['VENCIDO','CANCELADO'].includes(t.estado)); }
 function viajeUso(v){ const t=ticketsDe(v); return { n:sum(t,'n'), kg:r2(sum(t,'kg')), m3:r2(sum(t,'m3')) }; }
 function viajeLibre(v){ const c=viajeCap(v), u=viajeUso(v); return { n:c.n-u.n, kg:r2(c.kg-u.kg) }; }
 
-function prodInfo(p){ return { tb:by(DB.cargas,p.tb), th:by(DB.horarios,p.th), prot:by(DB.protocolos,p.prot), ts:servicioDe(p), tar:tarifaDe(p) }; }
-function nombreProducto(p){ const i=prodInfo(p); return i.tb.material+' · '+p.tv+' · '+(i.ts?i.ts.modalidad:'—'); }
+function prodInfo(p){ return { tv:tvDe(p.tv), tc:tcDe(p.tc), tb:by(DB.cargas,p.tb), th:by(DB.horarios,p.th), prot:by(DB.protocolos,p.prot), ts:servicioDe(p), tar:tarifaDe(p) }; }
+function nombreProducto(p){ const i=prodInfo(p); return i.tb.material+' · '+nomTV(p.tv)+' · '+(i.ts?i.ts.modalidad:'—'); }
 
 function estimarPrecio(tarifa, nTickets){
   let sub, detalle;
@@ -280,19 +292,17 @@ function buscarAlcance(o,d){
 }
 function syncRuta(d){ const r=buscarAlcance(d.origen,d.destino); d.alc=r.alcance?r.alcance.id:''; d.rutaErr=r.error||''; if(r.alcance){ d.origen=r.alcance.origen; d.destino=r.alcance.destino; } }
 
-/* Busca (o propone) el viaje de un producto/alcance/fecha con unidad y contenedor compatibles y libres */
+/* Busca (o propone) el viaje de un producto/alcance/fecha con unidad y contenedor del tipo del producto, operativos y libres */
 function resolverViaje(prod, alc, fecha){
   const exist = DB.viajes.find(v=>v.prod===prod.id && v.alcance===alc.id && v.fecha===fecha);
   if(exist) return {viaje:exist, nuevo:false};
   if(!alc.km || !alc.horas) return {error:'El alcance '+alc.id+' no tiene distancia ni duración definidas.'};
-  const cp = DB.compat.find(c=>c.ok && c.tb===prod.tb && c.tv===prod.tv);
-  if(reglaActiva('REG-03') && !cp) return {error:'No hay compatibilidad registrada entre este tipo de carga y este tipo de vehículo (Catálogo de compatibilidad).'};
-  const tc = cp ? cp.tc : null;
+  const rig = reglaActiva('REG-03');
   const ocupV = DB.viajes.filter(v=>v.fecha===fecha).map(v=>v.veh), ocupC = DB.viajes.filter(v=>v.fecha===fecha).map(v=>v.cont);
-  const veh = DB.vehiculos.find(v=>v.tipo===prod.tv && v.estado==='OK' && !ocupV.includes(v.id));
-  if(!veh) return {error:'No hay un vehículo tipo '+prod.tv+' disponible el '+dmy(fecha)+' (en uso o en mantenimiento).'};
-  const con = DB.contenedores.find(c=>(!tc||c.tipo===tc) && c.estado==='OK' && !ocupC.includes(c.id));
-  if(!con) return {error:'No hay un contenedor '+(tc||'')+' disponible el '+dmy(fecha)+' (en uso o en mantenimiento).'};
+  const veh = DB.vehiculos.find(v=>(!rig||v.tipo===prod.tv) && v.estado==='OK' && !ocupV.includes(v.id));
+  if(!veh) return {error:'No hay un vehículo tipo '+nomTV(prod.tv)+' disponible el '+dmy(fecha)+' (en uso o en mantenimiento).'};
+  const con = DB.contenedores.find(c=>(!rig||c.tipo===prod.tc) && c.estado==='OK' && !ocupC.includes(c.id));
+  if(!con) return {error:'No hay un contenedor '+nomTC(prod.tc)+' disponible el '+dmy(fecha)+' (en uso o en mantenimiento).'};
   return {viaje:{id:siguienteId('VJ-',DB.viajes,4),prod:prod.id,alcance:alc.id,fecha,veh:veh.id,cont:con.id}, nuevo:true};
 }
 
