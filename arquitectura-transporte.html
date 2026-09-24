@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Transporte Express – Arquitectura y Pantallas</title>
+<style>
+:root{
+  --bg:#f4f5f7;--panel:#fff;--ink:#1d2330;--mute:#5d6577;--line:#cfd4de;
+  --acc:#1f5fbf;--acc2:#e8f0fc;--ok:#1e8e55;--warn:#c9821a;--bad:#c23b3b;
+  --seg:#8a4fd6;--gen:#1f5fbf;--ope:#1e8e55;--bat:#c9821a;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]){--bg:#14171d;--panel:#1c2029;--ink:#e6e9ef;--mute:#9aa3b5;--line:#343b4a;--acc:#6ea3f5;--acc2:#1f2c45;--ok:#4cc38a;--warn:#e3a94d;--bad:#ee7b7b;--seg:#b58af0;--gen:#6ea3f5;--ope:#4cc38a;--bat:#e3a94d}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;min-height:100vh}
+a{color:var(--acc)}
+/* sidebar */
+#side{width:290px;flex:none;background:var(--panel);border-right:1px solid var(--line);height:100vh;position:sticky;top:0;overflow:auto;padding:14px 0 30px}
+#side h1{font-size:15px;margin:0 16px 2px}
+#side .sub{font-size:12px;color:var(--mute);margin:0 16px 12px}
+#side .g{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:14px 16px 4px;font-weight:600}
+#side .g i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+#side .g2{font-size:12px;font-weight:600;margin:8px 16px 2px;color:var(--ink)}
+#side a{display:block;padding:4px 16px 4px 26px;color:var(--ink);text-decoration:none;font-size:13.5px;border-left:3px solid transparent}
+#side a:hover{background:var(--acc2)}
+#side a.on{background:var(--acc2);border-left-color:var(--acc);font-weight:600}
+#side a.top{padding-left:16px;font-weight:600}
+main{flex:1;min-width:0;padding:26px 32px 60px;max-width:1150px}
+.page{display:none}.page.on{display:block}
+h2{font-size:22px;margin:0 0 4px}
+.path{font-size:12.5px;color:var(--mute);margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+.card h3{margin:0 0 6px;font-size:15px}
+.note{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.note>div{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:8px;padding:10px 14px;font-size:13.5px}
+.note>div.d{border-left-color:var(--warn)}
+.note b{display:block;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);margin-bottom:2px}
+@media(max-width:900px){body{display:block}#side{width:auto;height:auto;position:static}.note{grid-template-columns:1fr}main{padding:18px 14px}}
+/* architecture diagram */
+.arch{display:grid;gap:16px}
+.root{justify-self:center;background:var(--ink);color:var(--bg);padding:8px 26px;border-radius:8px;font-weight:700}
+.cols{display:grid;grid-template-columns:1fr 2.6fr 1.6fr;gap:14px;align-items:start}
+@media(max-width:900px){.cols{grid-template-columns:1fr}}
+.col{border:2px solid var(--c);border-radius:10px;padding:10px;background:var(--panel)}
+.col>h4{margin:0 0 8px;color:var(--c);font-size:14px;text-transform:uppercase;letter-spacing:.05em}
+.sub2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:1100px){.sub2{grid-template-columns:1fr}}
+.grp{border:1px dashed var(--line);border-radius:8px;padding:8px;margin-bottom:8px}
+.grp>h5{margin:0 0 6px;font-size:13px}
+.grp>h6{margin:6px 0 4px;font-size:11.5px;color:var(--mute);font-weight:600}
+.chip{display:block;font-size:12.5px;padding:3px 8px;border:1px solid var(--line);border-radius:5px;margin:3px 0;text-decoration:none;color:var(--ink);background:var(--bg)}
+.chip:hover{border-color:var(--acc);background:var(--acc2)}
+.chip.new{border-color:var(--ok)}
+.chip.new::after{content:" · nuevo";color:var(--ok);font-size:11px}
+table.t{border-collapse:collapse;width:100%;font-size:13.5px}
+table.t th,table.t td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+table.t th{background:var(--acc2)}
+.tag{font-size:11.5px;padding:1px 7px;border-radius:9px;background:var(--acc2);color:var(--acc);white-space:nowrap}
+.tag.g{background:#e0f3e9;color:var(--ok)}.tag.r{background:#f8e1e1;color:var(--bad)}.tag.y{background:#fbefd6;color:var(--warn)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .tag.g{background:#1c3a2c}:root:not([data-theme=light]) .tag.r{background:#432427}:root:not([data-theme=light]) .tag.y{background:#40331a}}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin:10px 0}
+.flow>div{flex:1 1 140px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);font-size:13px}
+.flow>div b{display:block;color:var(--acc);font-size:12px}
+.flow>span{align-self:center;color:var(--mute)}
+code{background:var(--acc2);padding:1px 5px;border-radius:4px;font-size:13px}
+/* wireframe */
+.win{border:2px solid #222;border-radius:6px;background:#fff;color:#222;box-shadow:4px 4px 0 #2224;margin:10px 0 6px;overflow:hidden}
+.win .bar{display:flex;align-items:center;gap:8px;border-bottom:2px solid #222;padding:5px 10px;background:#eee;font-size:12.5px}
+.win .bar .url{flex:1;border:1.5px solid #222;border-radius:12px;background:#fff;padding:1px 12px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.win .bar .dots{letter-spacing:3px;font-weight:700}
+.win .body{padding:14px 16px}
+.win *{color:#222}
+.win{font-family:"Segoe Print","Comic Sans MS","Bradley Hand",cursive}
+.win .body{font-size:13px}
+.win .hd{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.win .hd b{font-size:15px}
+.tabs{display:flex;gap:2px;margin-bottom:-2px;position:relative;flex-wrap:wrap}
+.tabs span{border:2px solid #222;border-bottom:0;border-radius:6px 6px 0 0;padding:3px 12px;background:#ddd;font-size:12.5px}
+.tabs span.on{background:#fff;font-weight:700}
+.tabbody{border:2px solid #222;padding:12px;background:#fff}
+.btn{display:inline-block;border:2px solid #222;padding:3px 14px;background:#fff;font-size:13px;box-shadow:2px 2px 0 #222;margin-right:4px;border-radius:3px}
+.btn.p{background:#d8e6ff}.btn.ok{background:#d6f0df}.btn.no{background:#f6d9d9}
+.tb{display:flex;gap:6px;justify-content:center;margin:0 0 10px;flex-wrap:wrap}
+.tb .search{border:2px solid #222;padding:3px 10px;min-width:180px;font-size:13px;color:#666;border-radius:3px}
+.win table{border-collapse:collapse;width:100%;font-size:12.5px}
+.win th{background:#ccc;border:2px solid #222;padding:4px 7px;text-align:left;white-space:nowrap}
+.win td{border:1px solid #222;padding:4px 7px}
+.win tr.sel td{background:#d8e6ff}
+.win .st{font-weight:700;font-size:11.5px}
+.win .st.g{color:#146c3c}.win .st.r{color:#a22}.win .st.y{color:#8a5a00}
+.ed{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+@media(max-width:900px){.ed{grid-template-columns:1fr}}
+.panel{border:2px solid #222;padding:8px 10px;border-radius:4px;background:#fafafa}
+.panel>.ph{font-weight:700;font-size:12.5px;border-bottom:1.5px solid #222;margin-bottom:6px;padding-bottom:2px;display:flex;justify-content:space-between}
+.f{display:grid;grid-template-columns:130px 1fr;gap:6px;align-items:center;margin:5px 0;font-size:12.5px}
+.f i{font-style:normal;border:2px solid #222;padding:2px 8px;background:#fff;min-height:24px;border-radius:3px}
+.f i.empty{color:#999;background:#f2f2f2}
+.f i.dd::after{content:" ▾";float:right}
+.msg{border:2px solid #222;padding:6px 10px;margin:8px 0;font-size:12.5px;border-radius:4px}
+.msg.ok{background:#d6f0df}.msg.er{background:#f6d9d9}.msg.wa{background:#fbefd6}
+.steps{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.steps span{flex:1;min-width:100px;text-align:center;border:2px solid #222;padding:3px;font-size:12px;background:#eee}
+.steps span.on{background:#d8e6ff;font-weight:700}
+.steps span.done{background:#d6f0df}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px}
+.kpi{border:2px solid #222;padding:8px 10px;background:#fafafa;font-size:12px}
+.kpi b{display:block;font-size:13px}.kpi .v{font-size:22px;font-weight:700}
+.kpi small{display:block;color:#555}
+.chart{border:2px solid #222;padding:8px 10px;background:#fafafa}
+.chart b{font-size:12.5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.qr{width:150px;height:150px;background:
+ conic-gradient(#222 25%,#fff 0 50%,#222 0 75%,#fff 0) 0 0/30px 30px;border:6px solid #222;margin:auto}
+.doc{border:2px solid #222;padding:14px;background:#fff}
+.hm{display:grid;grid-template-columns:110px repeat(7,1fr);gap:2px;font-size:11.5px}
+.hm div{padding:4px;text-align:center;border:1px solid #222}
+.hm .h{background:#ccc;font-weight:700}
+.hm .a{background:#bfe6cf}.hm .m{background:#f7e2a9}.hm .s{background:#f0b3b3}
+.bars{display:flex;align-items:flex-end;gap:8px;height:110px;border-left:2px solid #222;border-bottom:2px solid #222;padding:0 6px}
+.bars div{flex:1;background:#7ea6e8;border:1.5px solid #222;text-align:center;font-size:10.5px;position:relative}
+.bars div span{position:absolute;bottom:-18px;left:0;right:0;font-size:10.5px}
+.tl{border-left:3px solid #222;margin-left:8px;padding-left:12px}
+.tl div{margin:5px 0;font-size:12.5px;position:relative}
+.tl div::before{content:"";position:absolute;left:-19px;top:5px;width:10px;height:10px;background:#fff;border:2px solid #222;border-radius:50%}
+.tl div.d::before{background:#3aa66b}
+body.solo #side,body.solo .note,body.solo h2,body.solo .path{display:none}
+body.solo main{padding:12px;max-width:none}
+body.solo .win{margin:0;box-shadow:none}
+</style>
+</head>
+<body>
+<nav id="side"></nav>
+<main id="main"></main>
+
+<script>
+/* ============ helpers de wireframe ============ */
+const win=(url,inner,title)=>`<div class="win"><div class="bar"><span class="dots">● ● ●</span><span class="url">${url}</span><span>${title||''}</span></div><div class="body">${inner}</div></div>`;
+const btn=(t,c='')=>`<span class="btn ${c}">${t}</span>`;
+const st=t=>{const c=/(HABILIT|DISPON|ACTIV|Sí|OK|CERRAD|EMITID|PAGAD|VIGENTE|CONFORME|Éxito)/i.test(t)?'g':/(SATUR|NO |INACT|ERROR|VENCID|FALL|Alto|Cr[ií]t)/i.test(t)?'r':'y';return `<span class="st ${c}">${t}</span>`};
+const table=(cols,rows,opt={})=>`<table><thead><tr>${cols.map(c=>`<th>${c} ▴</th>`).join('')}</tr></thead><tbody>${rows.map((r,i)=>`<tr class="${i===(opt.sel??-1)?'sel':''}">${r.map((c,j)=>`<td>${(opt.st||[]).includes(j)?st(c):c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+const field=(l,v,cls='')=>`<div class="f"><span>${l}</span><i class="${v?cls:'empty '+cls}">${v||'—'}</i></div>`;
+const fields=(arr,empty)=>arr.map(([l,v,c])=>field(l,empty?'':v,c||'')).join('');
+const filters=(arr)=>`<div class="tb">${arr.map(a=>`<span class="search">${a}</span>`).join('')}${btn('Buscar','p')}</div>`;
+const tabs=(list,on)=>`<div class="tabs">${list.map((t,i)=>`<span class="${i===on?'on':''}">${t}</span>`).join('')}</div>`;
+
+/* catálogo: lista + detalle/edición + nuevo (tres estados que pide el profesor) */
+function catalog({url,cols,rows,stcols,tabsList,tabOn}){
+  const t=tabsList?tabs(tabsList,tabOn||0):'';
+  return win(url,`${t}<div class="${tabsList?'tabbody':''}">
+   <div class="tb">${btn('Agregar')}${btn('Editar')}${btn('Eliminar')}<span class="search">🔍 Buscar…</span></div>
+   ${table(cols,rows,{sel:1,st:stcols||[]})}</div>`);
+}
+const kpi=(n,v,meta,f,extra)=>`<div class="kpi"><b>${n}</b><span class="v">${v}</span><small>Meta: ${meta}</small><small>Fórmula: ${f}</small><small>${extra}</small></div>`;
+const bars=(arr)=>`<div class="bars">${arr.map(([l,h])=>`<div style="height:${h}%"><span>${l}</span></div>`).join('')}</div><div style="height:20px"></div>`;
+
+/* ============ definición de pantallas ============ */
+const S={};
+const scr=(id,o)=>S[id]=o;
+
+/* --- Seguridad --- */
+scr('s_login',{t:'Control de acceso (login)',path:'1. Seguridad',
+ purpose:'Primera pantalla: controla QUIÉN entra. Cliente, operario y administrador entran por aquí; “Registrarse” solo crea cuentas de tipo Cliente/Remitente.',
+ defend:'El QR no es decoración: el operario en patio lo escanea desde la app móvil de su cuenta para entrar rápido con guantes/en campo. Pregunta típica: “¿por qué QR y cómo funciona?”.',
+ render:()=>win('https://www.transporteexpress.com.pe/login',`
+  <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:10px">Bienvenido a Transporte Express</div>
+  <div style="display:grid;grid-template-columns:1fr 2px 1fr;gap:20px;align-items:center">
+   <div><div style="text-align:center;margin-bottom:10px"><span class="btn" style="padding:16px 30px;font-weight:700">🚚 LOGO</span></div>
+    ${field('DNI','')}${field('Contraseña','')}<div style="font-size:12.5px;margin:4px 0">☐ Mostrar contraseña</div>
+    <div>${btn('Iniciar sesión','p')}</div><div style="margin-top:8px">${btn('Registrarse (cliente)')}</div>
+    <div style="margin-top:8px;font-size:12.5px"><u>¿Olvidaste tu contraseña?</u></div></div>
+   <div style="border-left:3px dotted #222;height:240px"></div>
+   <div style="text-align:center"><b>Ingresa por QR</b><div class="qr" style="margin-top:8px"></div><div style="font-size:12px;margin-top:6px">Escanea desde la app de Transporte Express</div></div>
+  </div>`)});
+scr('s_perfiles',{t:'Perfiles y permisos',path:'1. Seguridad',
+ purpose:'Controla QUÉ puede hacer cada perfil. Lista de perfiles a la izquierda, módulos/parámetros habilitados a la derecha, con permisos por acción (ver / crear / editar / eliminar).',
+ defend:'“¿Qué puede hacer el Operario de Carga y por qué?” → Solo Entrega de servicio, ver ticket y bitácora; no toca catálogos ni ventas. Cliente: solo Venta de ticket y sus reportes.',
+ render:()=>win('https://www.transporteexpress.com.pe/seguridad/perfiles',`
+  <div class="grid2" style="grid-template-columns:1fr 1.6fr">
+   <div class="panel"><div class="ph"><span>PERFILES</span></div>
+    ${table(['Perfil','Usuarios'],[['Administrador BD','2'],['Gerente','3'],['Vendedor / Caja','6'],['Op. Transporte (conductor)','48'],['Op. Carga / Descarga','22'],['Cliente / Remitente','1 250']],{sel:1})}
+    <div style="margin-top:8px">${btn('Nuevo','p')}${btn('Modificar')}${btn('Eliminar','no')}</div></div>
+   <div class="panel"><div class="ph"><span>PRIVILEGIOS — Gerente</span></div>
+    ${table(['Módulo / parámetro','Ver','Crear','Editar','Elim.'],[
+     ['Parámetros: carga, ruta, horario, contenedor, vehículo','✔','✔','✔','✔'],
+     ['Catálogo de producto y recursos','✔','✔','✔','✘'],
+     ['Catálogo protocolo / reglas / políticas','✔','✔','✔','✘'],
+     ['Consulta de demanda, utilización, incidentes','✔','—','—','—'],
+     ['Tablero de KPIs','✔','—','—','—'],
+     ['Venta de ticket','✘','✘','✘','✘'],
+     ['Batch (generación de tickets, backup)','✔ solo ver','✘','✘','✘']],{sel:-1})}
+   </div></div>
+  <div class="msg wa">Asignar a un usuario: DNI ▾ ______ Perfil ▾ ______ Estado ▾ Activo ${btn('Asignar','ok')}</div>`)});
+
+/* --- Catálogos (estilo simple: pestañas + tabla) --- */
+const T5=['Vehículo','Carga','Contenedor','Ruta','Horario','Operario'];
+const H='HABILITADO',NH='NO HABILITADO';
+scr('p_vehiculo',{t:'Parámetro de vehículo',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Unidades vehiculares que la empresa puede usar como recurso: placa, tipo, ejes, carga máxima, consumo por 100 km, kilometraje, nivel de riesgo y si está habilitada.',
+ defend:'Peso máximo y consumo por 100 km justifican la tarifa; la capacidad del vehículo impacta el costo. “Estado” en el catálogo = habilitada para operar; el cupo del día sale de Disponibilidad-Recursos.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/parametros/vehiculo',tabsList:T5,tabOn:0,
+  cols:['Código','Placa','Recurso / Tipo','Ejes','Carga máx.','Consumo','Km actual','Riesgo','Estado'],stcols:[8],
+  rows:[['r-veh-energ','XYZ123','Vehículo con energía','2','18000 kg','4 L/100km','45200 km','Bajo','DISPONIBLE'],['r-veh-susp','ABC345','Suspensión activa','4','12000 kg','12 L/100km','88100 km','Alto','NO DISPONIBLE'],['r-veh-cist','FGC576','Cisterna volátil','3','25000 kg','15 L/100km','32000 km','Bajo','DISPONIBLE'],['r-veh-std','DEF890','Estándar general','2','8000 kg','8 L/100km','12500 km','Bajo','DISPONIBLE']]})});
+scr('p_carga',{t:'Parámetro de tipo de carga',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Tipos de carga que se pueden transportar: material (perecible, gas, inflamable, general, radioactivo, frágil, tóxico), medidas, peso y temperatura.',
+ defend:'Define qué recursos exige el servicio (freezer para perecible, hermético para volátil, etc.).',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/parametros/tipo-carga',tabsList:T5,tabOn:1,
+  cols:['Código','Material','Alto','Ancho','Largo','Peso','Temperatura','Estado'],stcols:[7],
+  rows:[['CG-001','Perecible','0.5 m','0.5 m','0.5 m','0.5 kg','12 °C',H],['CG-002','Gas','1 m','1 m','1 m','1 kg','−5 °C',H],['CG-003','Frágil','1.5 m','1.5 m','1.5 m','1.5 kg','0 °C',H],['CG-004','Radioactivo','2 m','2 m','2 m','2 kg','45 °C',NH]]})});
+scr('p_contenedor',{t:'Parámetro de contenedor',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Tipos de contenedor vehicular con su material, capacidad en tickets, temperatura y qué cargas admite.',
+ defend:'Política del modelo: el material del contenedor debe ser aplicable al tipo de carga.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/parametros/contenedor',tabsList:T5,tabOn:2,
+  cols:['Código','Tipo','Material','Capacidad','Temperatura','Carga admitida','Estado'],stcols:[6],
+  rows:[['r-cont-fzr','Freezer','MC-1','30 tickets','−20 / 10 °C','Perecible',H],['r-cont-shk','Anti-shock','MC-2','40 tickets','ambiente','Frágil',H],['r-cont-herm','Hermético','MC-1','20 tickets','0 / 20 °C','Volátil / Gas',H],['r-cont-blind','Blindado','MC-3','10 tickets','ambiente','Radioactivo',NH]]})});
+scr('p_ruta',{t:'Parámetro de ruta',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Rutas origen → destino entre provincias, con paradas programadas y duración. La ruta guía a la unidad durante la entrega.',
+ defend:'Origen y destino son las provincias del modelo (LIM, CHI, JUN, TAC, TRU…).',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/parametros/ruta',tabsList:T5,tabOn:3,
+  cols:['Código','Origen','Destino','Paradas','Distancia','Duración','Estado'],stcols:[6],
+  rows:[['R-001','Lima','Chiclayo','Huacho, Trujillo','770 km','12 h',H],['R-002','Lima','Junín','La Oroya','300 km','6 h',H],['R-003','Trujillo','Tacna','Lima, Ica','1450 km','22 h',H],['R-004','Lima','Loreto','—','—','—',NH]]})});
+scr('p_horario',{t:'Parámetro de horario',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Horarios de salida y llegada de los productos de transporte (día y hora). Con ellos se arma el calendario para generar tickets.',
+ defend:'Es horario del producto, no turno del conductor (eso va en operario).',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/parametros/horario',tabsList:T5,tabOn:4,
+  cols:['Código','Día salida','Hora salida','Día llegada','Hora llegada','Estado'],stcols:[5],
+  rows:[['HOR-001','Lunes','9:00 PM','Martes','10:00 AM',H],['HOR-002','Miércoles','8:00 AM','Miércoles','8:00 PM',H],['HOR-003','Viernes','2:00 PM','Sábado','10:00 AM',H],['HOR-004','Domingo','5:00 AM','Domingo','5:00 PM',NH]]})});
+scr('p_operario',{t:'Parámetro de operario',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Conductores, ayudantes y autómatas de carga/descarga, con su turno y estado.',
+ defend:'Aquí van los turnos y pausas del conductor.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/parametros/operario',tabsList:T5,tabOn:5,
+  cols:['Código','Nombre','Rol','Licencia','Turno','Estado'],stcols:[5],
+  rows:[['OP-001','Luis Quispe','Conductor','A-IIIc','06:00–14:00','ACTIVO'],['OP-002','Marta Rojas','Ayudante','—','14:00–22:00','ACTIVO'],['AUT-001','Autómata perecible','Autómata','—','24 h','ACTIVO'],['OP-003','Pedro Gil','Conductor','A-IIIb','22:00–05:00','INACTIVO']]})});
+scr('p_servicio',{t:'Catálogo de servicios',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Servicios de transporte que ofrece la empresa. “Habilitado” = la empresa está autorizada/equipada para realizarlo.',
+ defend:'Pregunta del profesor: qué significa disponible/no disponible en el catálogo → la empresa está habilitada para ese servicio.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/catalogos/servicios',
+  cols:['Código','Servicio','Protocolo','Estado'],stcols:[3],
+  rows:[['SER-001','Transporte de carga perecible','PROT-001',H],['SER-002','Transporte de carga frágil','PROT-001',H],['SER-003','Transporte de carga volátil','PROT-002',NH]]})});
+scr('p_producto',{t:'Catálogo de producto de transporte',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Producto = origen + destino + horario de salida/llegada + tipo de carga. Es lo que se programa y de lo que se fabrican tickets.',
+ defend:'Sin producto no hay qué programar en la generación de tickets.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/catalogos/producto',
+  cols:['Producto','Origen','Destino','Salida','Llegada','Tipo carga','Estado'],stcols:[6],
+  rows:[['ST-001','Lima','Chiclayo','Mié 8:00 AM','Mié 8:00 PM','Perecible',H],['ST-002','Lima','Junín','Lun 9:00 PM','Mar 10:00 AM','Frágil',H],['ST-162','Trujillo','Tacna','Vie 2:00 PM','Sáb 10:00 AM','Volátil',NH]]})});
+scr('p_recurso',{t:'Catálogo de recursos de transporte',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Recursos que consume un servicio (contenedores, unidades, autómatas), su tipo y la transacción donde se usan.',
+ defend:'Base de Disponibilidad-Recursos: cada recurso tiene capacidad por ventana de tiempo.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/catalogos/recursos',
+  cols:['Código','Recurso','Tipo','Condición de uso','Transacción','Estado'],stcols:[5],
+  rows:[['r-cont-fzr','Contenedor con freezer','físico','según la carga','embarcar',H],['r-veh-energ','Unidad con energía','físico','según el contenedor','transportar',H],['r-auto-peres','Autómata perecible','tecnológico','según la carga','embarcar / desembarcar',H]]})});
+scr('c_protocolo',{t:'Catálogo de protocolo',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Secuencia de eventos de cada servicio y la condición para pasar de una etapa a otra (ej. Ejecutar traslado). Cada cambio queda con fecha y motivo.',
+ defend:'“¿Qué condición hace pasar de etapa?” → ticket validado y unidad asignada; cada paso genera un evento en la bitácora.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/catalogos/protocolo',
+  cols:['Protocolo','Servicio','Secuencia de eventos','Condición de activación','Versión','Estado'],stcols:[5],
+  rows:[['PROT-001','Perecible / Frágil','Validar ticket → Ruta → Salida → Paradas → Cierre','Ticket validado + unidad asignada','v3','VIGENTE'],['PROT-002','Volátil','Validar → Ruta segura → Salida → Cierre','Ticket validado + contenedor hermético','v1','NO VIGENTE']]})});
+scr('c_reglas',{t:'Catálogo de reglas',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Reglas de negocio formadas por condiciones unidas con and/or; se validan al vender el ticket.',
+ defend:'Regla 1: un remitente compra a lo más “r” tickets por unidad. Regla 2: carga volátil obliga a comprar todos los tickets.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/catalogos/reglas',
+  cols:['Regla','Descripción','Condiciones','Conector','Estado'],stcols:[4],
+  rows:[['REG-01','Un remitente compra a lo más “r” tickets en una unidad','cond01, cond02','and','ACTIVA'],['REG-02','Carga volátil: comprar todos los tickets del tanque','cond03, cond04','and','ACTIVA']]})});
+scr('c_politicas',{t:'Catálogo de políticas',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Combinaciones permitidas entre catálogos: contenedores ↔ unidades y material del contenedor ↔ tipo de carga.',
+ defend:'La regla se evalúa en una transacción; la política es una tabla de combinaciones permitidas.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/catalogos/politicas',
+  cols:['Política','Descripción','Relaciona','Estado'],stcols:[3],
+  rows:[['POL-01','Se asignan contenedores a las unidades vehiculares','Contenedor ↔ Placa','VIGENTE'],['POL-02','Material del contenedor aplicable a n tipos de carga','Tipo de carga ↔ Material','VIGENTE']]})});
+scr('c_condiciones',{t:'Catálogo de condiciones',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Comparación de una variable contra un parámetro, con la acción si es verdadera o falsa.',
+ defend:'cond01: numero_tickets < r → V: ok, F: cond02.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/catalogos/condiciones',
+  cols:['Código','Descripción','Operador','Parámetro','Acción V','Acción F'],
+  rows:[['cond01','numero_tickets < r','EQ','r','ok','cond02'],['cond02','numero_unidades = 1','EQ','1','ok','null'],['cond03','tipo_carga = V','EQ','V','cond04','ok']]})});
+scr('c_variable',{t:'Catálogo de variables',path:'2.1.1 Mantenimiento de parámetros',
+ purpose:'Variables usadas por las condiciones: qué miden, su categoría y a qué entidad pertenece su valor.',
+ defend:'Conecta reglas → condiciones → variables.',
+ render:()=>catalog({url:'https://www.transporteexpress.com.pe/gerencia/catalogos/variables',
+  cols:['Código','Descripción','Categoría','Valor'],
+  rows:[['numero_tickets','Tickets que ocupará la carga','Parque','Evento'],['tipo_carga','Tipo de carga del ticket','Parque','Ticket'],['cap_tanque','Capacidad de tickets del tanque','Parque','Unidad vehicular']]})});
+
+/* --- Consultas --- */
+scr('q_demanda',{t:'Consulta de demanda',path:'2.1.2 Consulta',
+ purpose:'Servicios/tickets vendidos por período, ruta y tipo de carga. Solo lectura con filtros.',
+ defend:'Consulta ≠ reporte: se explora en pantalla, no se descarga.',
+ render:()=>win('https://www.transporteexpress.com.pe/gerencia/consultas/demanda',`
+  ${filters(['Desde: 01/06/2026','Hasta: 30/06/2026','Ruta: Todas ▾','Tipo carga: Todas ▾'])}
+  ${table(['Producto','Ruta','Horario','Tickets vendidos','Capacidad','Ocupación','Tipo de carga'],[['ST-001','LIM→CHI','Mié 8:00','2 340','2 600','90 %','Perecible'],['ST-002','LIM→JUN','Lun 21:00','1 480','2 200','67 %','Frágil'],['ST-162','TRU→TAC','Vie 14:00','310','800','39 %','Volátil']],{sel:0})}
+  <div class="msg" style="margin-top:8px">Detalle ST-001: por semana → S1 560 · S2 610 · S3 590 · S4 580 &nbsp; ${btn('Ver clientes')}</div>
+  <div style="font-size:12px">Página 1 de 3 ◀ ▶ &nbsp; Orden: Ocupación ▾</div>`)});
+scr('q_recursos',{t:'Consulta de utilización de recursos',path:'2.1.2 Consulta',
+ purpose:'Mapa de disponibilidad de recursos por día (Disponibilidad-Recursos): capacidad máxima vs tickets ocupados y estado disponible/saturado.',
+ defend:'Aquí sí se ve “disponible/saturado”: es dato calculado por ticket, no un atributo del catálogo.',
+ render:()=>win('https://www.transporteexpress.com.pe/gerencia/consultas/utilizacion',`
+  ${filters(['Recurso: Todos ▾','Semana: 22/06–28/06','Estado: Todos ▾'])}
+  <div class="hm"><div class="h">Recurso</div><div class="h">Lun</div><div class="h">Mar</div><div class="h">Mié</div><div class="h">Jue</div><div class="h">Vie</div><div class="h">Sáb</div><div class="h">Dom</div>
+   <div>r-cont-fzr</div><div class="s">30/30</div><div class="m">21/30</div><div class="a">9/30</div><div class="a">0/30</div><div class="m">18/30</div><div class="a">5/30</div><div class="a">0/30</div>
+   <div>r-cont-anti-shk</div><div class="m">25/40</div><div class="s">40/40</div><div class="s">40/40</div><div class="m">30/40</div><div class="a">2/40</div><div class="a">0/40</div><div class="a">0/40</div>
+   <div>r-cont-herm</div><div class="a">0/20</div><div class="a">4/20</div><div class="m">12/20</div><div class="s">20/20</div><div class="m">14/20</div><div class="a">1/20</div><div class="a">0/20</div>
+   <div>r-uni-veh-susp</div><div class="s">1/1</div><div class="s">1/1</div><div class="a">0/1</div><div class="a">0/1</div><div class="s">1/1</div><div class="a">0/1</div><div class="a">0/1</div></div>
+  <div style="font-size:12px;margin-top:6px">■ verde: disponible · ■ amarillo: &gt;50 % ocupado · ■ rojo: saturado</div>`)});
+scr('q_incidentes',{t:'Consulta de incidentes / bitácora de eventos',path:'2.1.2 Consulta',
+ purpose:'Eventos de la bitácora del traslado con filtros por fecha, ticket, estado. Permite detectar retrasos o rechazos de carga.',
+ defend:'Basado en “Eventos–Bitácora” del modelo: EVT-LLEGADA, EVT-VAL-TICKET, EVT-INI-RUTA, EVT-PASO-COOR, EVT-PARADA, EVT-EMBARQUE, EVT-ENTREGA, EVT-CIERRE.',
+ render:()=>win('https://www.transporteexpress.com.pe/gerencia/consultas/incidentes',`
+  ${filters(['Fecha: 02/07/2026','Ticket: ______','Estado: Todos ▾','Solo incidentes ☐'])}
+  ${table(['Cód. evento','Fecha/Hora','Transacción','Operación','Estado','Resultado'],[['EVT-LLEGADA','02/07 07:50','Llegada de transporte','leer_ticket','RUTA','Unidad en zona de parqueo'],['EVT-VAL-TICKET','02/07 07:55','Validar ticket','validar_ticket','RUTA','Ticket y placa confirmados'],['EVT-INI-RUTA','02/07 08:00','Registrar inicio','registrar_salida','RUTA','Salida registrada'],['EVT-PARADA','02/07 11:00','Llegada a parada','comprobar_llegada_parada','RUTA','Puntualidad validada'],['EVT-EMBARQUE','02/07 12:00','Embarque de carga','verificar_especificaciones','EMBA','Carga conforme'],['EVT-ENTREGA','03/07 08:00','Entrega','validar_usuario_destinatario','ENTR','Carga entregada']],{sel:4})}`)});
+scr('q_kpi',{t:'Tablero de KPIs y gráficas',path:'2.1.2 Consulta',
+ purpose:'Indicadores con fórmula, unidad, meta, período, fuente y responsable; más gráficas con título, ejes y filtros.',
+ defend:'“¿Para qué sirve este KPI y cómo se calcula?” está escrito en cada tarjeta. KPI = valor puntual con meta; gráfica = tendencia.',
+ render:()=>win('https://www.transporteexpress.com.pe/gerencia/indicadores',`
+  ${filters(['Período: Jun-2026 ▾','Ruta: Todas ▾'])}
+  <div class="kpis">
+   ${kpi('Ocupación de vehículos','82 %','85 %','tickets ocupados ÷ capacidad máx.','Fuente: Disponibilidad-Recursos · Resp.: Jefe de operaciones')}
+   ${kpi('Rentabilidad por ruta','S/ 41 200','S/ 45 000','ingresos − costo (combustible, operario)','Fuente: Ventas + Parámetro vehículo · Resp.: Gerente')}
+   ${kpi('Utilización de capacidad','76 %','80 %','tickets vendidos ÷ tickets generados','Fuente: Lote-tickets · Resp.: Jefe comercial')}
+   ${kpi('Puntualidad en paradas','94 %','95 %','paradas a tiempo ÷ paradas totales','Fuente: Bitácora · Resp.: Op. Transporte')}
+  </div>
+  <div class="grid2">
+   <div class="chart"><b>Servicios por ruta – Jun 2026 (barras)</b>${bars([['LIM-CHI',90],['LIM-JUN',65],['TRU-TAC',40],['LIM-ICA',55]])}<small>Eje Y: tickets vendidos (miles) · Eje X: ruta</small></div>
+   <div class="chart"><b>Rentabilidad mensual (líneas)</b><svg viewBox="0 0 300 120" style="width:100%;height:120px;border-left:2px solid #222;border-bottom:2px solid #222"><polyline fill="none" stroke="#1f5fbf" stroke-width="3" points="10,90 60,70 110,75 160,45 210,50 270,25"/></svg><small>Eje Y: soles · Eje X: Ene–Jun</small></div>
+  </div>`)});
+
+/* --- Operativo --- */
+const step=(n,on)=>`<div class="steps">${['1 Buscar servicio','2 Datos de carga','3 Reserva','4 Orden de pago','5 Ticket emitido'].map((s,i)=>`<span class="${i+1===on?'on':i+1<on?'done':''}">${s}</span>`).join('')}</div>`;
+scr('o_venta',{t:'Venta de ticket (proceso central)',path:'2.2.1 Data entry',
+ purpose:'Flujo completo de 5 pasos. Consulta disponibilidad en tiempo real, valida reglas, RESERVA los tickets (con vencimiento), genera orden de pago y emite el ticket al confirmar el pago.',
+ defend:'Punto crítico del profesor: el cupo se reserva en el momento (no “por día o semana”). La reserva descuenta de la capacidad del recurso en esa ventana; si no se paga, vence y se libera (batch).',
+ render:()=>
+  win('https://www.transporteexpress.com.pe/ventas/nuevo · Paso 1',`${step(1,1)}
+   ${filters(['Origen: LIM ▾','Destino: CHI ▾','Fecha desde: 22/06','Fecha hasta: 30/06','Tipo carga: Perecible ▾'])}
+   ${table(['Producto','Salida','Llegada','Recursos','Capacidad','Ocupados','Disponibles','Estado','Tarifa',''],[['ST-001','Mié 24/06 8:00','Mié 24/06 20:00','fzr + veh-energ','30','20','10','DISPONIBLE','S/ 120','[Elegir]'],['ST-001','Mié 01/07 8:00','Mié 01/07 20:00','fzr + veh-energ','30','30','0','SATURADO','S/ 120','—']],{sel:0,st:[7]})}`,'Buscar')+
+  win('https://www.transporteexpress.com.pe/ventas/nuevo · Paso 2',`${step(2,2)}
+   <div class="grid2"><div class="panel"><div class="ph">DATOS DE LA CARGA</div>${field('Remitente (DNI)','70112233')}${field('Tipo de carga','CG-001 Perecible','dd')}${field('Peso / medidas','0.5 kg · 0.5×0.5×0.5 m')}${field('Temperatura','12 °C','dd')}${field('N° de tickets','3')}${field('Destinatario','Comercial Norte SAC')}</div>
+   <div class="panel"><div class="ph">VALIDACIÓN DE REGLAS Y POLÍTICAS</div>${table(['Regla','Resultado'],[['REG-01 tickets (3) ≤ r (5)','OK'],['REG-02 carga volátil → comprar todo','No aplica'],['POL-02 contenedor freezer admite perecible','OK']],{st:[1]})}<div class="msg ok">✔ Cumple las reglas</div></div></div>
+   <div style="text-align:right">${btn('Atrás')}${btn('Reservar','p')}</div>`)+
+  win('https://www.transporteexpress.com.pe/ventas/nuevo · Paso 3',`${step(3,3)}
+   <div class="msg ok">✔ 3 tickets reservados en r-cont-fzr / r-veh-energ (24/06 8:00–20:00). Disponibles: 10 → 7</div>
+   <div class="msg wa">⏱ La reserva vence en <b>14:32</b>. Si no se paga, los tickets se liberan.</div>
+   ${table(['Ítem','Cant.','Tarifa','Subtotal'],[['ST-001 LIM→CHI Perecible','3','S/ 120','S/ 360']],{sel:-1})}<div style="text-align:right">${btn('Cancelar reserva','no')}${btn('Continuar','p')}</div>`)+
+  win('https://www.transporteexpress.com.pe/ventas/nuevo · Paso 4',`${step(4,4)}
+   <div class="grid2"><div class="panel"><div class="ph">ORDEN DE PAGO N° OP-000451</div>${field('Cliente','70112233 – J. Ramos')}${field('Total','S/ 360.00')}${field('Medio de pago','Tarjeta ▾ / Yape / Efectivo caja','dd')}${field('Vence','22/06 10:15')}</div>
+   <div class="panel"><div class="ph">ESTADO</div><div class="msg wa">Pago pendiente</div><div class="msg er">Ejemplo de error: “La reserva venció. Los tickets fueron liberados.”</div></div></div>
+   <div style="text-align:right">${btn('Pagar','ok')}${btn('Cancelar','no')}</div>`)+
+  win('https://www.transporteexpress.com.pe/ventas/nuevo · Paso 5',`${step(5,5)}
+   <div class="msg ok">✔ Pago confirmado. Se emitieron 3 tickets: TK-88101, TK-88102, TK-88103. El servicio quedó habilitado para la ejecución.</div>
+   <div>${btn('Ver comprobante')}${btn('Ver estado del ticket')}${btn('Nueva venta','p')}</div>`)});
+scr('o_entrega',{t:'Registro de entrega del servicio',path:'2.2.1 Data entry',
+ purpose:'El operario valida el ticket, registra salida, paradas, embarque, desembarque y cierre. Cada acción genera un evento en la bitácora y actualiza el estado del ticket (RUTA → EMBA → ENTR).',
+ defend:'Sigue el protocolo “Ejecutar traslado”: ticket validado y unidad asignada → recién ahí se habilitan los botones siguientes.',
+ render:()=>win('https://www.transporteexpress.com.pe/operacion/entrega',`
+  <div class="grid2" style="grid-template-columns:1.2fr 1fr">
+  <div><div class="panel"><div class="ph">1. VALIDAR TICKET</div>${field('Ticket / QR','TK-88101')}${field('Placa unidad','XYZ123')}${field('Contenedor','CONT01 (freezer)')}<div class="msg ok">✔ Ticket y placa confirmados</div>${btn('Validar','p')}</div>
+  <div class="panel" style="margin-top:10px"><div class="ph">2. ACCIONES DEL TRASLADO</div>
+   <div>${btn('Registrar salida','ok')}${btn('Leer posición actual')}${btn('Llegada a parada')}</div><div style="margin-top:6px">${btn('Embarcar carga')}${btn('Desembarcar carga')}${btn('Cerrar ticket','p')}</div>
+   ${field('Observación','Carga conforme, espacio asignado')}</div></div>
+  <div class="panel"><div class="ph">BITÁCORA DEL TICKET</div><div class="tl"><div class="d">02/07 07:50 · Llegada de transporte</div><div class="d">07:55 · Ticket validado</div><div class="d">08:00 · Salida registrada</div><div class="d">09:30 · Paso por coordenadas</div><div class="d">11:00 · Llegada a parada</div><div class="d">12:00 · Embarque conforme</div><div>03/07 08:00 · Entrega (pendiente)</div><div>08:15 · Cierre (pendiente)</div></div></div></div>`)});
+
+/* --- Reportes --- */
+scr('r_estado',{t:'Estado del ticket',path:'2.2.2 Reportes',
+ purpose:'Documento consolidado con el estado de los tickets de un cliente/remitente. Descargable.',
+ defend:'Consulta vs reporte: este se imprime/descarga en PDF o Excel y trae totales.',
+ render:()=>win('https://www.transporteexpress.com.pe/reportes/estado-ticket',`
+  ${filters(['Cliente: 70112233','Período: 01/06–30/06','Estado: Todos ▾'])}
+  <div class="doc"><b>Reporte de estado de tickets — J. Ramos — Junio 2026</b><br><br>
+  ${table(['Ticket','Producto','Ruta','Fecha servicio','Estado'],[['TK-88101','ST-001','LIM→CHI','24/06','ENTREGADO'],['TK-88102','ST-001','LIM→CHI','24/06','EN RUTA'],['TK-88103','ST-001','LIM→CHI','24/06','PAGADO'],['TK-80012','ST-002','LIM→JUN','08/06','CERRADO']],{sel:-1,st:[4]})}
+  <div style="margin-top:8px">Total tickets: 4 · Entregados/cerrados: 2 · En curso: 2</div></div>
+  <div style="margin-top:8px">${btn('Descargar PDF','p')}${btn('Descargar Excel')}${btn('Imprimir')}</div>`)});
+scr('r_comprobante',{t:'Comprobante de venta',path:'2.2.2 Reportes',
+ purpose:'Comprobante emitido tras el pago de la orden (boleta/factura) con detalle de tickets.',
+ defend:'Se genera solo cuando la orden de pago está PAGADA.',
+ render:()=>win('https://www.transporteexpress.com.pe/reportes/comprobante/B001-000231',`
+  <div class="doc" style="max-width:560px;margin:auto"><div style="display:flex;justify-content:space-between"><b>TRANSPORTE EXPRESS S.A.C.</b><span>BOLETA B001-000231</span></div><div style="font-size:12.5px">RUC 20XXXXXXXXX · Fecha: 22/06/2026 · Cliente: J. Ramos (DNI 70112233)</div><br>
+  ${table(['Descripción','Cant.','P. unit.','Total'],[['Servicio transporte perecible LIM→CHI (24/06 8:00)','3','120.00','360.00']],{sel:-1})}
+  <div style="text-align:right;margin-top:6px">Subtotal 305.08 · IGV 54.92 · <b>Total S/ 360.00</b></div><div style="font-size:12px">Orden de pago OP-000451 · Medio: Tarjeta</div></div>
+  <div style="margin-top:8px;text-align:center">${btn('Descargar PDF','p')}${btn('Imprimir')}</div>`)});
+scr('r_detalle',{t:'Detalle del servicio',path:'2.2.2 Reportes',
+ purpose:'Resumen del servicio ejecutado: ruta, unidad, contenedor, operarios, eventos y resultado.',
+ defend:'Une venta (ticket) con entrega (bitácora): es la “historia” completa de un servicio.',
+ render:()=>win('https://www.transporteexpress.com.pe/reportes/detalle-servicio',`
+  ${filters(['Ticket: TK-88101','Ver bitácora ☑'])}
+  <div class="doc"><b>Detalle del servicio EVT-TRANS-007</b>
+  <div class="grid2" style="margin-top:8px"><div>${field('Producto','ST-001 LIM→CHI')}${field('Unidad / placa','XYZ123')}${field('Contenedor','CONT01 freezer')}${field('Conductor','Luis Quispe')}</div>
+  <div>${field('Salida real','24/06 08:02')}${field('Llegada real','24/06 19:40')}${field('Puntualidad','Validada')}${field('Resultado','Carga entregada al destinatario')}</div></div>
+  <div style="margin-top:8px;font-size:12.5px">Operaciones: planificar_ruta, registrar_salida, seguimiento_ruta, llegada_parada, embarcar, desembarcar, cerrar_ticket</div></div>
+  <div style="margin-top:8px">${btn('Descargar PDF','p')}${btn('Imprimir')}</div>`)});
+
+/* --- Batch --- */
+scr('b_tickets',{t:'Generación de tickets (fabricación)',path:'3.1 Batch / Aplicativo',
+ purpose:'Proceso automático: dado un rango de fechas, toma los productos habilitados, sus horarios y los recursos requeridos, y FABRICA un lote de tickets por cada ventana. La capacidad del lote = mínimo de capacidad libre de los recursos comprometidos.',
+ defend:'Es la respuesta a lo que el profesor observó: la disponibilidad no es “por día o semana”, es por recurso × ventana horaria; los recursos quedan comprometidos por el Evento creador y no se pueden duplicar.',
+ render:()=>win('https://www.transporteexpress.com.pe/batch/generacion-tickets',`
+  <div class="grid2"><div class="panel"><div class="ph">PARÁMETROS DE LA CORRIDA</div>${field('Rango de fechas','01/07/2026 – 31/07/2026')}${field('Productos','Todos los habilitados','dd')}${field('Frecuencia','Diaria 02:00 · horizonte 30 días','dd')}${field('Al detectar conflicto','Omitir y reportar','dd')}<div>${btn('Guardar programación','ok')}${btn('Ejecutar ahora','p')}</div></div>
+  <div class="panel"><div class="ph">ÚLTIMA EJECUCIÓN — 20/09 02:00</div><div class="msg ok">✔ 186 lotes generados · 5 580 tickets · 2 conflictos omitidos</div><div class="msg wa">Conflicto: r-cont-herm ya comprometido 24/07 08:00–20:00 (ST-010)</div></div></div>
+  ${table(['Producto','Ventana (inicio → fin)','Recursos comprometidos','Capacidad lote','Tickets generados','Estado'],[['ST-001','01/07 08:00 → 01/07 20:00','r-cont-fzr, r-veh-energ','30','30','GENERADO'],['ST-002','06/07 21:00 → 07/07 10:00','r-cont-anti-shk, r-uni-veh-susp','40','40','GENERADO'],['ST-010','24/07 08:00 → 24/07 20:00','r-cont-herm','20','0','ERROR – conflicto']],{sel:-1,st:[5]})}`)});
+scr('b_disp',{t:'Actualización de disponibilidad y reservas vencidas',path:'3.1 Batch / Aplicativo',
+ purpose:'Recalcula el estado de Disponibilidad-Recursos (tickets ocupados, saturado/disponible) y libera reservas de tickets cuyo pago venció.',
+ defend:'La reserva en línea decrementa cupo al instante; este batch corrige inconsistencias y libera cupo huérfano.',
+ render:()=>win('https://www.transporteexpress.com.pe/batch/disponibilidad',`
+  <div class="tb">${btn('Programar')}${btn('Ejecutar ahora','p')}<span class="search">Cada 5 min · Estado: ACTIVO</span></div>
+  ${table(['Corrida','Reservas vencidas liberadas','Recursos recalculados','Pasaron a SATURADO','Volvieron a DISPONIBLE','Resultado'],[['20/09 10:05','4','38','1','2','OK'],['20/09 10:00','0','38','0','0','OK'],['20/09 09:55','7','38','0','3','OK']],{sel:0,st:[5]})}`)});
+scr('b_bd',{t:'Actualización de BD (tablas maestras)',path:'3.1 Batch / Aplicativo',
+ purpose:'Actualiza tarifas, cierra tickets no consumidos, refresca tablas maestras y atributos acumulados.',
+ defend:'Todo lo que corre sin usuario presente va en batch; lo que requiere acción de usuario es online.',
+ render:()=>win('https://www.transporteexpress.com.pe/batch/actualizacion-bd',`
+  ${table(['Proceso','Frecuencia','Última corrida','Registros afectados','Estado'],[['Cierre de tickets no consumidos','Diaria 03:00','20/09 03:00','128','OK'],['Actualización de tarifas por combustible','Semanal (lunes)','14/09 04:00','62','OK'],['Actualización de atributos de cliente','Diaria 03:30','20/09 03:30','1 250','OK']],{sel:-1,st:[4]})}
+  <div style="margin-top:8px">${btn('Nueva programación')}${btn('Ejecutar seleccionado','p')}</div>`)});
+scr('b_stats',{t:'Generación de estadísticas',path:'3.1 Batch / Aplicativo',
+ purpose:'Precalcula demanda por ruta, ocupación y rentabilidad para alimentar consultas y KPIs sin sobrecargar la BD operativa.',
+ defend:'Los KPIs del tablero salen de aquí.',
+ render:()=>win('https://www.transporteexpress.com.pe/batch/estadisticas',`
+  ${table(['Estadística','Alimenta a','Frecuencia','Última corrida','Duración','Estado'],[['Demanda por ruta y período','Consulta de demanda','Diaria 01:00','20/09 01:00','2 min','OK'],['Ocupación por recurso','Consulta de utilización','Cada hora','20/09 10:00','40 s','OK'],['Rentabilidad por ruta','Tablero de KPIs','Mensual (día 1)','01/09 00:30','6 min','OK']],{sel:-1,st:[5]})}
+  <div style="margin-top:8px">${btn('Ejecutar ahora','p')}${btn('Ver historial')}</div>`)});
+scr('b_mant',{t:'Mantenimiento de BD',path:'3.2 Batch / Técnico',
+ purpose:'Monitoreo de consultas lentas, gestión de datos obsoletos, análisis de frecuencia de uso y acciones correctivas (reindexar, archivar).',
+ defend:'Se olvida a menudo; el profesor pregunta para qué sirve cada opción.',
+ render:()=>win('https://www.transporteexpress.com.pe/tecnico/mantenimiento-bd',`
+  <div class="grid2"><div class="panel"><div class="ph">CONSULTAS LENTAS (últimas 24 h)</div>${table(['Consulta','Tiempo','Veces'],[['Disponibilidad por ventana','4.8 s','312'],['Demanda por período','3.1 s','45']],{sel:0})}<div style="margin-top:6px">${btn('Reindexar','p')}${btn('Analizar plan')}</div></div>
+  <div class="panel"><div class="ph">DATOS OBSOLETOS</div>${table(['Tabla','Antigüedad','Registros','Acción'],[['Tickets cerrados','> 24 meses','12 400','Archivar'],['Bitácora de eventos','> 12 meses','88 100','Archivar']],{sel:-1})}<div style="margin-top:6px">${btn('Archivar seleccionados','ok')}</div></div></div>
+  <div class="panel" style="margin-top:10px"><div class="ph">FRECUENCIA DE USO DE DATOS</div>${table(['Tabla','Lecturas/día','Escrituras/día','Recomendación'],[['Disponibilidad-Recursos','52 000','9 800','Índice por recurso+ventana'],['Catálogo de protocolo','120','1','Sin acción']],{sel:-1})}</div>`)});
+scr('b_cont',{t:'Contingencia: backup y restauración',path:'3.2 Batch / Técnico',
+ purpose:'Backups programados, historial, backup manual, restauración de una versión y destino (disco/nube).',
+ defend:'Debe verse frecuencia, historial, opción manual y restauración.',
+ render:()=>win('https://www.transporteexpress.com.pe/tecnico/contingencia',`
+  <div class="grid2"><div class="panel"><div class="ph">PROGRAMACIÓN</div>${field('Frecuencia','Diaria 23:30','dd')}${field('Tipo','Completo domingo / incremental diario','dd')}${field('Destino','Nube + disco local','dd')}${field('Retención','30 días')}<div>${btn('Guardar','ok')}${btn('Backup manual ahora','p')}</div></div>
+  <div class="panel"><div class="ph">RESTAURAR</div>${field('Versión','19/09 23:30 · 4.2 GB','dd')}${field('Modo','Punto en el tiempo','dd')}<div class="msg wa">Restaurar reemplaza los datos actuales. Se pedirá confirmación de un segundo administrador.</div>${btn('Restaurar','no')}</div></div>
+  ${table(['Fecha','Tipo','Tamaño','Destino','Resultado'],[['19/09 23:30','Incremental','4.2 GB','Nube','OK'],['18/09 23:30','Incremental','3.9 GB','Nube','OK'],['14/09 23:30','Completo','48 GB','Nube + disco','OK'],['13/09 23:30','Incremental','—','Nube','ERROR']],{sel:0,st:[4]})}`)});
+
+/* ============ árbol de arquitectura ============ */
+const ARCH={
+ seg:[['s_login'],['s_perfiles']],
+ param:['p_carga','p_ruta','p_horario','p_contenedor','p_vehiculo','p_operario','p_servicio','p_producto','p_recurso'],
+ cat:['c_protocolo','c_reglas','c_politicas','c_condiciones','c_variable'],
+ cons:['q_demanda','q_recursos','q_incidentes','q_kpi'],
+ de:['o_venta','o_entrega'],rep:['r_estado','r_comprobante','r_detalle'],
+ apl:['b_tickets','b_disp','b_bd','b_stats'],tec:['b_mant','b_cont']
+};
+const NEW=new Set(['p_producto','p_recurso','p_servicio','p_operario','q_incidentes','q_kpi','b_tickets','b_disp','b_bd','s_perfiles']);
+const short={s_login:'Control de acceso (login)',s_perfiles:'Perfiles y permisos',p_carga:'Parámetro de tipo de carga',p_ruta:'Parámetro de ruta',p_horario:'Parámetro de horario',p_contenedor:'Parámetro de contenedor',p_vehiculo:'Parámetro de vehículo',p_operario:'Parámetro de operario',p_servicio:'Catálogo de servicios',p_producto:'Catálogo de producto',p_recurso:'Catálogo de recursos',c_protocolo:'Catálogo de protocolo',c_reglas:'Catálogo de reglas',c_politicas:'Catálogo de políticas',c_condiciones:'Catálogo de condiciones',c_variable:'Catálogo de variable',q_demanda:'Consulta de demanda',q_recursos:'Consulta de utilización de recursos',q_incidentes:'Consulta de incidentes',q_kpi:'KPIs y gráficas',o_venta:'Venta de ticket',o_entrega:'Registro de entrega del servicio',r_estado:'Estado del ticket',r_comprobante:'Comprobante de venta',r_detalle:'Detalle del servicio',b_tickets:'Generación de tickets',b_disp:'Actualización de disponibilidad',b_bd:'Actualización BD',b_stats:'Estadísticas',b_mant:'Mantenimiento BD',b_cont:'Contingencia (backup)'};
+const chips=l=>l.flat().map(id=>`<a class="chip ${NEW.has(id)?'new':''}" href="#${id}">${short[id]}</a>`).join('');
+
+const archHTML=`<div class="arch"><div class="root">SISTEMA DE TRANSPORTE</div>
+<div class="cols">
+ <div class="col" style="--c:var(--seg)"><h4>1. Seguridad</h4><div class="grp">${chips(ARCH.seg)}</div></div>
+ <div class="col" style="--c:var(--gen)"><h4>2. On-line</h4><div class="sub2">
+   <div class="grp"><h5 style="color:var(--gen)">2.1 Gerencial</h5><h6>2.1.1 Mantenimiento de parámetros</h6>${chips(ARCH.param)}<h6>Catálogos de protocolo y reglas</h6>${chips(ARCH.cat)}<h6>2.1.2 Consulta</h6>${chips(ARCH.cons)}</div>
+   <div class="grp"><h5 style="color:var(--ope)">2.2 Operativo</h5><h6>2.2.1 Data entry</h6>${chips(ARCH.de)}<h6>2.2.2 Reportes</h6>${chips(ARCH.rep)}</div></div></div>
+ <div class="col" style="--c:var(--bat)"><h4>3. Batch</h4>
+   <div class="grp"><h5>3.1 Aplicativo</h5>${chips(ARCH.apl)}</div><div class="grp"><h5>3.2 Técnico</h5>${chips(ARCH.tec)}</div></div>
+</div><div style="font-size:12.5px;color:var(--mute)">Verde = pantalla nueva o rehecha respecto a la arquitectura del ciclo anterior. Click en cualquier módulo para ver su pantalla.</div></div>`;
+
+/* ============ páginas explicativas ============ */
+const P={};
+P.arq=`<h2>Arquitectura del sistema</h2><div class="path">Sistema de Transporte · Transporte Express</div>
+<div class="card">${archHTML}</div>
+<div class="card"><h3>Cómo lo planteé</h3>
+<p>Uso la misma división que ya tenían (Seguridad / On-line / Batch) y la que pide la guía del profesor, pero la armé <b>a partir del modelo conceptual</b>: cada bloque del modelo se convierte en un módulo.</p>
+<table class="t"><tr><th>Bloque del modelo conceptual</th><th>Módulo en la arquitectura</th></tr>
+<tr><td>1. Definición (Producto, Tipo de carga, Provincias, Horarios, Protocolo, Reglas/Políticas)</td><td><b>Gerencial › Mantenimiento de parámetros</b> (catálogos con CRUD)</td></tr>
+<tr><td>2. Fabricación (Producto-Recursos, Transacción-Recursos, Disponibilidad, Generación de tickets, Programación)</td><td><b>Batch › Aplicativo</b> (generación de tickets, actualización de disponibilidad) + <b>Consulta de utilización de recursos</b></td></tr>
+<tr><td>3. Venta de ticket</td><td><b>Operativo › Data entry › Venta de ticket</b> (proceso central) + reportes de comprobante</td></tr>
+<tr><td>4. Entrega de servicio (Embarque, Traslado, Desembarque, Eventos–Bitácora, Protocolo)</td><td><b>Data entry › Registro de entrega</b> + <b>Consulta de incidentes</b> + <b>Detalle del servicio</b></td></tr>
+<tr><td>Transversal</td><td><b>Seguridad</b> (login + perfiles) y <b>Batch › Técnico</b> (mantenimiento y backup)</td></tr></table>
+<p style="margin-top:10px"><b>Criterio on-line vs batch:</b> si necesita que una persona actúe → on-line. Si corre sola en horario → batch. Por eso la <i>generación de tickets</i> es batch y la <i>venta</i> es on-line.</p></div>`;
+P.cambios=`<h2>Qué corregí de lo que tenían</h2><div class="path">Comparación con el avance (árbol + pantallas de parámetros + login) y el ciclo anterior</div>
+<div class="card"><table class="t"><tr><th>#</th><th>Lo que estaba</th><th>Problema</th><th>Cómo quedó</th></tr>
+<tr><td>1</td><td>Seguridad colgada al costado del árbol</td><td>Login y perfiles se confunden en una sola pantalla</td><td>Módulo 1 con <b>dos pantallas</b>: acceso (URL, DNI, contraseña, QR) y perfiles/permisos con ejemplos</td></tr>
+<tr><td>2</td><td>“Tipo de vehículo” con placa, riesgo y estado DISPONIBLE/SATURADO</td><td>Mezcla <b>tipo</b> (catálogo) con <b>unidad física</b> (parque) y pone disponibilidad en un catálogo</td><td>Pestaña de <b>tipo</b> (ejes, peso máx., consumo/100 km, protocolo de seguridad, tarifa) + pestaña <b>parque</b>. “Habilitado” = la empresa puede operarlo. Saturado sale de Disponibilidad-Recursos</td></tr>
+<tr><td>3</td><td>Tipo de carga solo con Tipo y Detalle</td><td>El modelo define Material A–G, dimensiones, peso y temperatura</td><td>Todas esas columnas, con los códigos del modelo</td></tr>
+<tr><td>4</td><td>Ruta con “Cobertura máx.” y “Altitud”</td><td>No existen en el modelo</td><td>Ruta = provincia origen/destino, paradas, distancia, duración</td></tr>
+<tr><td>5</td><td>Horario = turnos del conductor y pausas</td><td>El modelo usa horario del <b>producto</b> (Día-Hora salida/llegada)</td><td>Horario de producto en Horario; turnos pasan a <b>Parámetro de operario</b></td></tr>
+<tr><td>6</td><td>Faltaban catálogos</td><td>Sin producto, recursos y servicio no se pueden fabricar tickets</td><td>Agregué <b>Producto</b>, <b>Recursos</b>, <b>Servicios</b>, <b>Operario</b></td></tr>
+<tr><td>7</td><td>Batch con solo Actualización BD y Estadísticas; técnico correcto</td><td>Faltaba lo central del profesor: la <b>generación de tickets</b> y disponibilidad</td><td>Batch aplicativo con generación de tickets, actualización de disponibilidad/reservas vencidas</td></tr>
+<tr><td>8</td><td>Consultas: demanda y utilización</td><td>Sin KPIs ni gráficas; sin bitácora</td><td>Agregué incidentes/bitácora y tablero KPIs con fórmula, meta, responsable</td></tr>
+<tr><td>9</td><td>Login con “https” y QR</td><td>URL incompleta; el QR sin justificación</td><td>URL coherente, mensaje de uso del QR, registro solo para cliente</td></tr>
+<tr><td>10</td><td>Catálogos solo con lista</td><td>La guía exige 3 estados: lista, edición y vacío</td><td>Cada catálogo muestra lista + panel de edición + panel de nuevo registro</td></tr></table></div>`;
+P.ticket=`<h2>Lógica de disponibilidad y generación de tickets</h2><div class="path">El punto donde el profesor dijo que las respuestas eran incorrectas</div>
+<div class="card"><h3>Idea central</h3><p>La disponibilidad <b>no es “por día o por semana”</b>. Es <b>por recurso y por ventana horaria</b> (fecha-hora inicio → fecha-hora fin), con <b>capacidad máxima</b> y <b>tickets ocupados</b>. La venta reserva cupo en tiempo real sobre esa ventana.</p>
+<div class="flow"><div><b>1 · Catálogos</b>Producto (origen, destino, horario, carga) + recursos que exige</div><span>→</span><div><b>2 · BATCH: generación</b>Para cada producto y fecha del rango, busca la ventana y compromete los recursos libres (Evento creador). Crea el lote de tickets = capacidad del recurso más limitante</div><span>→</span><div><b>3 · Disponibilidad</b>Una fila por recurso × ventana: capacidad máx., ocupados, estado</div><span>→</span><div><b>4 · ON-LINE: venta</b>Reserva n tickets en una sola operación atómica</div><span>→</span><div><b>5 · Pago</b>Reserva → vendido. Si vence, el batch la libera</div></div></div>
+<div class="card"><h3>Ejemplo con datos del modelo</h3>
+<table class="t"><tr><th>Recurso</th><th>Ventana</th><th>Capacidad</th><th>Ocupados</th><th>Estado</th></tr>
+<tr><td>r-cont-fzr</td><td>27/06 8:00 → 28/06 9:00</td><td>30</td><td>20</td><td><span class="tag g">disponible</span></td></tr>
+<tr><td>r-auto-peres</td><td>27/06 8:00 → 28/06 9:00</td><td>1</td><td>1</td><td><span class="tag r">saturado</span></td></tr>
+<tr><td>r-cont-herm</td><td>28/06 8:00 → 29/06 8:00</td><td>20</td><td>20</td><td><span class="tag r">saturado</span></td></tr></table>
+<p>Un servicio solo tiene cupo si <b>todos</b> sus recursos tienen cupo en la misma ventana. Cupo del servicio = mínimo de (capacidad − ocupados) de sus recursos.</p></div>
+<div class="card"><h3>Reserva en tiempo real (qué decir si preguntan)</h3><ol>
+<li>El cliente elige producto y fecha; la pantalla muestra cupo <i>actual</i>, no un dato de ayer.</li>
+<li>Al confirmar, en una sola transacción: verificar <code>ocupados + n ≤ capacidad</code> y sumar <code>n</code> a ocupados. Si dos clientes compiten por el último cupo, solo uno lo obtiene (bloqueo de la fila).</li>
+<li>Los tickets quedan <b>RESERVADOS</b> con vencimiento (ej. 15 min). Al pagar → <b>VENDIDO</b>. Si vence → el batch libera y baja ocupados.</li>
+<li>Si ocupados = capacidad, el estado pasa a <b>SATURADO</b> y el producto deja de ofrecerse en esa ventana.</li>
+<li>Antes de reservar se validan las reglas (máx. “r” tickets por remitente; carga volátil compra todo).</li></ol></div>`;
+P.guia=`<h2>Guía del profesor (asesoría PC1) aplicada</h2><div class="path">Resumen de https://harrypc2023.github.io/asesoria-dbd/ y dónde se cumple en esta propuesta</div>
+<div class="card"><table class="t"><tr><th>Exige el profesor</th><th>Dónde está</th></tr>
+<tr><td>Arquitectura con TODOS los módulos y que estén diseñados</td><td>Página Arquitectura: los 31 chips abren su pantalla</td></tr>
+<tr><td>Login con URL, logo, DNI/contraseña y método adicional</td><td><a href="#s_login">Control de acceso</a></td></tr>
+<tr><td>Perfiles con permisos y ejemplos</td><td><a href="#s_perfiles">Perfiles y permisos</a></td></tr>
+<tr><td>Catálogos: lista, detalle, CRUD, 3 estados</td><td>Todas las pantallas de 2.1.1</td></tr>
+<tr><td>Proceso central con flujo completo, confirmaciones y errores</td><td><a href="#o_venta">Venta de ticket</a> (5 pasos)</td></tr>
+<tr><td>Consultas con filtros y detalle</td><td>2.1.2</td></tr>
+<tr><td>KPIs (fórmula, meta, responsable) y gráficas</td><td><a href="#q_kpi">Tablero de KPIs</a></td></tr>
+<tr><td>Reportes descargables con totales</td><td>2.2.2</td></tr>
+<tr><td>Protocolo con condiciones e historial</td><td><a href="#c_protocolo">Catálogo de protocolo</a></td></tr>
+<tr><td>Batch (tickets, estadísticas, actualizaciones)</td><td>3.1</td></tr>
+<tr><td>Backup con historial y restauración; mantenimiento BD</td><td>3.2</td></tr></table></div>
+<div class="card"><h3>Preguntas que siempre hace</h3><ol><li>¿Cómo definieron su protocolo y cómo funciona?</li><li>¿Qué puede hacer el perfil X y por qué?</li><li>¿Esta interfaz realmente funciona para su sistema?</li><li>Explíquenme el catálogo y el proceso principal.</li><li>¿Para qué sirve este KPI y cómo se calcula?</li><li>¿Qué significa disponible/no disponible en el catálogo? (habilitado para operar)</li><li>¿Cómo se generan los tickets y cómo verifican disponibilidad en un rango de fechas? (ver <a href="#ticket">Lógica de tickets</a>)</li></ol>
+<p>Cada pantalla tiene abajo dos cuadros: <b>Para qué sirve</b> y <b>Qué defender</b>, para que todos los integrantes puedan explicarla.</p></div>`;
+
+/* ============ render ============ */
+const side=document.getElementById('side'),main=document.getElementById('main');
+let sh=`<h1>Transporte Express</h1><div class="sub">Arquitectura y diseño externo (sin funcionalidad)</div>
+<a class="top" href="#arq">▣ Arquitectura</a><a class="top" href="#cambios">⚑ Correcciones</a><a class="top" href="#ticket">⏱ Lógica de tickets</a><a class="top" href="#guia">✓ Guía del profesor</a>`;
+const grp=(c,name,ids,sub)=>sh+=`<div class="g"${c?'':''}>${c?`<i style="background:var(${c})"></i>`:''}${name}</div>${ids.map(id=>`<a href="#${id}">${short[id]}</a>`).join('')}`;
+grp('--seg','1. Seguridad',['s_login','s_perfiles']);
+sh+=`<div class="g"><i style="background:var(--gen)"></i>2.1 Gerencial</div><div class="g2">Parámetros</div>${ARCH.param.map(id=>`<a href="#${id}">${short[id]}</a>`).join('')}<div class="g2">Protocolo y reglas</div>${ARCH.cat.map(id=>`<a href="#${id}">${short[id]}</a>`).join('')}<div class="g2">Consulta</div>${ARCH.cons.map(id=>`<a href="#${id}">${short[id]}</a>`).join('')}`;
+sh+=`<div class="g"><i style="background:var(--ope)"></i>2.2 Operativo</div><div class="g2">Data entry</div>${ARCH.de.map(id=>`<a href="#${id}">${short[id]}</a>`).join('')}<div class="g2">Reportes</div>${ARCH.rep.map(id=>`<a href="#${id}">${short[id]}</a>`).join('')}`;
+sh+=`<div class="g"><i style="background:var(--bat)"></i>3. Batch</div><div class="g2">Aplicativo</div>${ARCH.apl.map(id=>`<a href="#${id}">${short[id]}</a>`).join('')}<div class="g2">Técnico</div>${ARCH.tec.map(id=>`<a href="#${id}">${short[id]}</a>`).join('')}`;
+side.innerHTML=sh;
+
+let mh='';
+for(const k in P)mh+=`<section class="page" id="pg-${k}">${P[k]}</section>`;
+for(const id in S){const s=S[id];mh+=`<section class="page" id="pg-${id}"><h2>${s.t}</h2><div class="path">${s.path}</div>${s.render()}
+<div class="note"><div><b>Para qué sirve</b>${s.purpose}</div><div class="d"><b>Qué defender</b>${s.defend}</div></div></section>`}
+main.innerHTML=mh;
+
+function go(){const id=(location.hash||'#arq').slice(1);const el=document.getElementById('pg-'+id)?id:'arq';
+ document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='pg-'+el));
+ side.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+el));scrollTo(0,0)}
+if(location.search.includes('solo'))document.body.classList.add('solo');
+addEventListener('hashchange',go);go();
+</script>
+</body>
+</html>
