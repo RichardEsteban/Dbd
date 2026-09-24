@@ -40,3 +40,4 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 - **Ticket** = espacio comprometido (1 ticket = 1 m³ mínimo, y kg) en el contenedor de una unidad para un viaje en una fecha.
 - **Express** = tarifa fija, reserva todo el contenedor y es exclusivo de una sola carga, cualquiera sea su tipo.
 - **Seguimiento** = secuencia de 7 pasos confirmados por autómatas o por el sistema (sin GPS).
+
