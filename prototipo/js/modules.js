@@ -130,7 +130,6 @@ route('parametros',{title:'Parámetros generales',crumb:'2.1 Gerencial › 2.1.1
   const key = PARAM_CFG[arg]?arg:'tv', cfg = PARAM_CFG[key];
   const tabs = PARAM_TABS.map(([k,l])=>`<a class="tab ${k===key?'on':''}" href="#/parametros/${k}">${l}</a>`).join('');
   return guide(['Elija el parámetro en las pestañas.','<b>Agregar</b>: se abre el formulario vacío; el código se completa solo.','Al <b>Guardar</b> el sistema valida; si algo está mal marca el campo y explica el motivo.','<b>Editar</b> exige seleccionar una fila; <b>Eliminar</b> pide confirmación.','Si el registro ya lo usan viajes o productos, no se elimina: se propone <b>deshabilitarlo</b> (unidades) o se indica qué lo usa.'],0)+
-   msg('info','<b>Definición:</b> los parámetros son variables que se mantienen fijas para definir el producto. Solo se mantienen <b>tipos</b> (haga clic en una fila para ver sus filas asociadas en los demás parámetros): las unidades físicas (placas, contenedores, autómatas) se registran en la flota, y las <b>tarifas</b> y el <b>seguimiento</b> son reportes (2.2.2).')+
    `<div class="tabs">${tabs}</div><div class="tabbody">${INFO[key]?`<div class="infoline">${info(INFO[key])}</div>`:''}${crudView(cfg)}</div><div id="assoc-panel">${assocPanelHTML()}</div>`; }});
 
 /* ---------------------------------------------------------------- CATÁLOGOS */
