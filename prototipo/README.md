@@ -33,7 +33,7 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 5. **Asignación de ticket (2.2.1.2)** en 6 pasos: cliente y carga → servicio y espacio (tickets y kg) → precio con IGV →
    confirmación → **medio de pago** → **orden de pago** con tarjeta (validaciones) → ticket PAGADO.
    Pruebe Express sobre un viaje que ya tiene tickets → lo rechaza REG-06.
-6. **Reportes (2.2.2)**: disponibilidad, seguimiento por 7 pasos (con retraso → incidente), clientes, **tarifas** (ⓘ Tarifa fija),
+6. **Reportes (2.2.2)**: disponibilidad, seguimiento con **ubicación GPS** y 7 pasos (con retraso → incidente), clientes, **tarifas por servicio y ruta** (filtros; ⓘ Tarifa fija),
    tickets e incidentes.
 7. **Aplicativo (3.1)**: avanzar reloj y ejecutar la actualización → libera reservas vencidas; generar indicadores.
 8. **Consulta de indicadores (2.1.2.1)** lee lo generado por el batch.
@@ -51,11 +51,12 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 
 ## Definiciones que usa el prototipo
 - **Parámetro** = variable fija que define el producto; solo se mantienen **tipos** (no placas ni estados). Las unidades físicas van en el **Registro de flota**. Tarifas y seguimiento son **reportes**, no parámetros.
-- **Producto** = tipo de vehículo + tipo de carga + horario + protocolo + tipo de servicio (la tarifa sale del reporte).
+- **Producto** = tipo de vehículo + tipo de carga + horario + protocolo + tipo de servicio (la tarifa sale del servicio y de la ruta elegida).
+- **Tarifa** = se asocia a un **tipo de servicio + un alcance (ruta)**, no al producto: el precio depende de qué se presta y de cuánto se recorre. Se consulta en el Reporte de tarifas; si no hay tarifa vigente para esa combinación, el sistema no cotiza.
 - **Horario** = salida y llegada programadas (ventana); la ruta elegida debe caber en esa ventana (REG-07).
 - **Ticket** = espacio comprometido (1 ticket = 1 m³ mínimo) en el contenedor de una unidad para un viaje en una fecha; solo se genera si cabe en m³ y en el peso por eje del vehículo (ejes × 5 000 kg, POL-05).
 - **Tipo de carga** = solo código y material; el cliente digita largo, ancho, alto y peso de su bulto y la cantidad.
 - **Contenedor** = cada unidad de la flota tiene su volumen (m³); el tipo define material y temperatura.
 - **Express** = tarifa fija, reserva todo el contenedor y es exclusivo de una sola carga, cualquiera sea su tipo.
-- **Seguimiento** = secuencia de 7 pasos confirmados por autómatas o por el sistema (sin GPS).
+- **Seguimiento por GPS** = cada vehículo lleva un equipo GPS (campo en el Registro de flota, REG-08). El reporte y el portal muestran un mapa con la posición, km recorridos, velocidad y última señal. **No hay puntos de control**: el recorrido es origen → paradas del alcance → destino. Los pasos 2 a 5 los confirma el GPS, los pasos 1 y 6 los autómatas y el 7 el sistema. (En el prototipo la señal GPS se simula a partir del reloj y del avance del viaje.)
 

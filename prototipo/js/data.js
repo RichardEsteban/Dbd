@@ -3,7 +3,8 @@
    - PARÁMETROS (solo TIPOS, variables fijas que definen el producto): tipo de vehículo, tipo de carga,
      tipo de contenedor, alcance, horario, tipo de servicio y tipo de autómata.
    - FLOTA (recursos físicos, Data-entry): vehículos con placa, contenedores y autómatas, cada uno con su estado.
-   - TARIFAS y SEGUIMIENTO: son REPORTES (no se mantienen como parámetros).
+   - TARIFAS: se asocian a un TIPO DE SERVICIO + un ALCANCE (ruta); son un REPORTE (no se mantienen como parámetro).
+   - SEGUIMIENTO: REPORTE con ubicación GPS de la unidad (sin puntos de control); cada vehículo lleva un equipo GPS.
    - TICKET: 1 ticket = 1 m³ mínimo de espacio dentro de un contenedor. Un envío compra
      tantos tickets como m³ ocupa (redondeado hacia arriba) y además debe respetar el peso por eje
      del vehículo (capacidad en kg = ejes × peso máximo por eje, política POL-05).
@@ -16,10 +17,10 @@ const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábad
 
 const PASOS = [
   {n:1, nombre:'Recibido',   desc:'La carga entra al contenedor y el ticket se valida', por:'Autómata de carga',   ref:['sal',-60], aut:'carga'},
-  {n:2, nombre:'Despachado', desc:'La unidad sale del origen',                           por:'Sistema',             ref:['sal',0]},
-  {n:3, nombre:'En tránsito',desc:'La unidad pasa un punto de control de la ruta',       por:'Sistema',             ref:['pct',0.25]},
-  {n:4, nombre:'En parada',  desc:'Llega a una parada intermedia del alcance',           por:'Sistema',             ref:['pct',0.55]},
-  {n:5, nombre:'En reparto', desc:'Llega a la ciudad de destino',                        por:'Sistema',             ref:['lle',-30]},
+  {n:2, nombre:'Despachado', desc:'El GPS detecta que la unidad salió del origen',       por:'GPS de la unidad',    ref:['sal',0]},
+  {n:3, nombre:'En tránsito',desc:'El GPS reporta que la unidad avanza por la ruta',     por:'GPS de la unidad',    ref:['avance',0.25]},
+  {n:4, nombre:'En parada',  desc:'El GPS detecta la unidad en una parada intermedia',   por:'GPS de la unidad',    ref:['avance',0.55]},
+  {n:5, nombre:'En reparto', desc:'El GPS detecta la unidad en la ciudad de destino',    por:'GPS de la unidad',    ref:['lle',-30]},
   {n:6, nombre:'Entregado',  desc:'La carga llega a la terminal de destino',                por:'Autómata de descarga',ref:['lle',0], aut:'descarga'},
   {n:7, nombre:'Cerrado',    desc:'El ticket se cierra con conformidad',                 por:'Sistema',             ref:['lle',15]}
 ];
@@ -95,16 +96,16 @@ function seed(){
     ],
     /* ---------- FLOTA (recursos físicos: Data-entry) ---------- */
     vehiculos:[
-      {id:'r-veh-001', placa:'XYZ123', tipo:'TV-001', estado:'OK'},
-      {id:'r-veh-002', placa:'ABC345', tipo:'TV-002', estado:'OK'},
-      {id:'r-veh-003', placa:'FGC576', tipo:'TV-003', estado:'OK'},
-      {id:'r-veh-004', placa:'DEF890', tipo:'TV-002', estado:'MANTENIMIENTO'},
-      {id:'r-veh-005', placa:'BCD456', tipo:'TV-001', estado:'OK'},
-      {id:'r-veh-006', placa:'GHJ789', tipo:'TV-002', estado:'OK'},
-      {id:'r-veh-007', placa:'KLM012', tipo:'TV-003', estado:'OK'},
-      {id:'r-veh-008', placa:'BLD001', tipo:'TV-004', estado:'OK'},
-      {id:'r-veh-009', placa:'NPQ345', tipo:'TV-001', estado:'OK'},
-      {id:'r-veh-010', placa:'BLD002', tipo:'TV-004', estado:'OK'}
+      {id:'r-veh-001', placa:'XYZ123', tipo:'TV-001', estado:'OK', gps:'GPS-001'},
+      {id:'r-veh-002', placa:'ABC345', tipo:'TV-002', estado:'OK', gps:'GPS-002'},
+      {id:'r-veh-003', placa:'FGC576', tipo:'TV-003', estado:'OK', gps:'GPS-003'},
+      {id:'r-veh-004', placa:'DEF890', tipo:'TV-002', estado:'MANTENIMIENTO', gps:'GPS-004'},
+      {id:'r-veh-005', placa:'BCD456', tipo:'TV-001', estado:'OK', gps:'GPS-005'},
+      {id:'r-veh-006', placa:'GHJ789', tipo:'TV-002', estado:'OK', gps:'GPS-006'},
+      {id:'r-veh-007', placa:'KLM012', tipo:'TV-003', estado:'OK', gps:'GPS-007'},
+      {id:'r-veh-008', placa:'BLD001', tipo:'TV-004', estado:'OK', gps:'GPS-008'},
+      {id:'r-veh-009', placa:'NPQ345', tipo:'TV-001', estado:'OK', gps:'GPS-009'},
+      {id:'r-veh-010', placa:'BLD002', tipo:'TV-004', estado:'OK', gps:'GPS-010'}
     ],
     contenedores:[                             // vol = m³ del contenedor (1 ticket = 1 m³)
       {id:'r-cont-001', tipo:'TC-001', vol:36, estado:'OK'},
@@ -140,7 +141,8 @@ function seed(){
       {id:'REG-04', nombre:'Día de salida',             descripcion:'La fecha del viaje debe coincidir con el día de salida del horario del producto.', accion:'Rechazar fecha', activo:true},
       {id:'REG-05', nombre:'Orden de los pasos',        descripcion:'Un paso solo se confirma si el anterior ya fue confirmado.', accion:'Bloquear paso', activo:true},
       {id:'REG-06', nombre:'Express exclusivo',         descripcion:'El servicio Express es exclusivo de una sola carga, cualquiera sea su tipo: reserva todo el contenedor y solo se permite en un viaje sin otros tickets.', accion:'Rechazar reserva', activo:true},
-      {id:'REG-07', nombre:'Ventana del horario',       descripcion:'La duración del alcance debe caber entre la salida y la llegada programadas del horario del producto.', accion:'Rechazar ruta', activo:true}
+      {id:'REG-07', nombre:'Ventana del horario',       descripcion:'La duración del alcance debe caber entre la salida y la llegada programadas del horario del producto.', accion:'Rechazar ruta', activo:true},
+      {id:'REG-08', nombre:'Vehículo con GPS',         descripcion:'El viaje solo usa un vehículo con equipo GPS asignado, porque la ubicación del envío se sigue por GPS.', accion:'Rechazar asignación', activo:true}
     ],
     politicas:[
       {id:'POL-01', nombre:'IGV',                 descripcion:'Porcentaje de IGV aplicado a la estimación del precio.', valor:'18', activo:true},
@@ -168,20 +170,10 @@ function seed(){
       {id:'PROD10', tv:'TV-004', tc:'TC-004', tb:'CG-007', th:'HOR-008', prot:'PROT-005', ts:'SER-008', activo:true},
       {id:'PROD11', tv:'TV-004', tc:'TC-004', tb:'CG-007', th:'HOR-009', prot:'PROT-005', ts:'SER-008', activo:true}
     ],
-    /* ---------- REPORTE DE TARIFAS (datos de consulta, no parámetro) ---------- */
-    tarifas:[
-      {id:'TAR-001', prod:'PROD01', modalidad:'Económico', base:'ticket', valor:120, desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-002', prod:'PROD02', modalidad:'Express',   base:'fija',   valor:300, desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-003', prod:'PROD03', modalidad:'Económico', base:'ticket', valor:95,  desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-004', prod:'PROD04', modalidad:'Express',   base:'fija',   valor:480, desde:'2026-01-01', hasta:'2026-05-31'},
-      {id:'TAR-005', prod:'PROD05', modalidad:'Económico', base:'ticket', valor:120, desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-006', prod:'PROD06', modalidad:'Económico', base:'ticket', valor:60,  desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-007', prod:'PROD07', modalidad:'Económico', base:'ticket', valor:60,  desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-008', prod:'PROD08', modalidad:'Económico', base:'ticket', valor:210, desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-009', prod:'PROD09', modalidad:'Express',   base:'fija',   valor:900, desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-010', prod:'PROD10', modalidad:'Express',   base:'fija',   valor:2500,desde:'2026-01-01', hasta:'2026-12-31'},
-      {id:'TAR-011', prod:'PROD11', modalidad:'Express',   base:'fija',   valor:2500,desde:'2026-01-01', hasta:'2026-12-31'}
-    ],
+    /* ---------- REPORTE DE TARIFAS (datos de consulta, no parámetro) ----------
+       La tarifa se asocia a un TIPO DE SERVICIO + un ALCANCE (ruta): el precio depende de qué se presta y de cuánto se recorre.
+       Se genera con una tarifa por km de cada servicio (la tarifa por ticket es por 1 m³; la fija, por todo el contenedor). */
+    tarifas:[],
     clientes:[
       {id:'70112233',    clave:'123456', nombre:'Juan Ramos',          tipo:'Persona', tel:'987 654 321', email:'juan.ramos@mail.com'},
       {id:'20601234567', clave:'123456', nombre:'Comercial Norte SAC', tipo:'Empresa', tel:'014 456 789', email:'compras@comercialnorte.pe'},
@@ -209,7 +201,17 @@ function seed(){
   };
 }
 
+/* tarifa por km de cada tipo de servicio (S/) y vigencia; SER-004 (radioactivo) tiene la tarifa vencida a propósito */
+const TARIFA_KM = {'SER-001':0.16,'SER-002':0.40,'SER-003':0.12,'SER-004':0.62,'SER-005':0.08,'SER-006':0.27,'SER-007':1.17,'SER-008':3.25};
+function generarTarifas(db){
+  let n=1; const out=[];
+  db.servicios.forEach(sv=>{ db.alcances.filter(a=>a.km&&a.horas).forEach(al=>{
+    out.push({id:'TAR-'+String(n++).padStart(3,'0'), ts:sv.id, alcance:al.id, modalidad:sv.modalidad, base:sv.base,
+      valor:Math.max(10,Math.round(al.km*TARIFA_KM[sv.id]/5)*5), desde:'2026-01-01', hasta:sv.id==='SER-004'?'2026-05-31':'2026-12-31'}); }); });
+  return out;
+}
 let DB = seed();
+DB.tarifas = generarTarifas(DB);
 
 /* ---------- utilidades ---------- */
 const by = (arr,id,key='id') => arr.find(x => x[key] === id);
@@ -245,7 +247,10 @@ function politica(id,def){ const p = by(DB.politicas,id); return p && p.activo ?
 
 const servicioDe = p => by(DB.servicios,p.ts);
 const esExpress = p => { const s=servicioDe(p); return !!s && s.modalidad==='Express'; };
-const tarifaDe = p => DB.tarifas.find(t=>t.prod===p.id);
+/* La tarifa depende del tipo de servicio del producto y del alcance (ruta) del viaje */
+const tarifaDe = (p,alc) => DB.tarifas.find(t=>t.ts===p.ts && t.alcance===alc);
+const tarifasDeServicio = ts => DB.tarifas.filter(t=>t.ts===ts);
+const nomSer = id => (by(DB.servicios,id)||{nombre:id}).nombre;
 const tarifaVigente = (t,fecha) => !!t && (fecha||ymd(HOY))>=t.desde && (fecha||ymd(HOY))<=t.hasta;
 
 function viajeCap(v){ const c=by(DB.contenedores,v.cont), u=by(DB.vehiculos,v.veh); return { n:c.vol, kg:capKgVeh(u) }; }   // m³ del contenedor y kg por ejes del vehículo
@@ -262,7 +267,7 @@ function unidadEnvio(campo,id){
   if(!best) return {estado:'LIBRE',carga:'—',viaje:null};
   return {estado:best.st,carga:nomCG(by(DB.productos,best.v.prod).tb),viaje:best.v.id,fecha:best.v.fecha};
 }
-function prodInfo(p){ return { tv:tvDe(p.tv), tc:tcDe(p.tc), tb:by(DB.cargas,p.tb), th:by(DB.horarios,p.th), prot:by(DB.protocolos,p.prot), ts:servicioDe(p), tar:tarifaDe(p) }; }
+function prodInfo(p){ return { tv:tvDe(p.tv), tc:tcDe(p.tc), tb:by(DB.cargas,p.tb), th:by(DB.horarios,p.th), prot:by(DB.protocolos,p.prot), ts:servicioDe(p) }; }
 function nombreProducto(p){ const i=prodInfo(p); return i.tb.material+' · '+nomTV(p.tv)+' · '+(i.ts?i.ts.modalidad:'—'); }
 
 function estimarPrecio(tarifa, nTickets){
@@ -273,7 +278,7 @@ function estimarPrecio(tarifa, nTickets){
   return { sub:r2(sub), igvPct, igv:r2(igv), total:r2(sub+igv), detalle };
 }
 
-/* Horarios esperados de cada paso: salida + duración del alcance × avance (sin GPS) */
+/* Horarios esperados de cada paso: salida + duración del alcance × avance. El GPS contrasta lo esperado con la posición real. */
 function planViaje(v){
   const al = by(DB.alcances,v.alcance), p = by(DB.productos,v.prod), th = by(DB.horarios,p.th);
   const sal = new Date(v.fecha+'T'+th.hSalida+':00'), horas = al.horas||0, lle = addMin(sal, horas*60);
@@ -286,6 +291,67 @@ function esperadoPaso(v, n){
   return addMin(pl.sal, pl.horas*60*val);
 }
 function secuenciaDe(v){ return { pasos:PASOS.map(p=>p.n), tolerancia:+politica('POL-04',30) }; }
+
+/* ---------- SEGUIMIENTO GPS ----------
+   Cada vehículo lleva un equipo GPS que reporta su posición. No hay puntos de control fijos: el recorrido es
+   origen → paradas del alcance → destino y la posición se ubica sobre ese recorrido. (Prototipo: la señal se simula.) */
+const COORD = {'Lima':[-12.046,-77.043],'Chiclayo':[-6.771,-79.840],'Junín':[-11.158,-75.993],'Trujillo':[-8.112,-79.029],'Tacna':[-18.006,-70.246],
+  'Arequipa':[-16.409,-71.537],'Ica':[-14.068,-75.729],'Piura':[-5.194,-80.633],'Cusco':[-13.532,-71.967],'Huacho':[-11.107,-77.605],
+  'La Oroya':[-11.519,-75.900],'Cañete':[-13.077,-76.384],'Chincha':[-13.410,-76.132],'Chimbote':[-9.085,-78.578],'Nazca':[-14.830,-74.939],
+  'Abancay':[-13.634,-72.881],'Moquegua':[-17.195,-70.935]};
+function distGeo(a,b){ const R=6371, rad=x=>x*Math.PI/180, dl=rad(b[0]-a[0]), dg=rad(b[1]-a[1]);
+  const h=Math.sin(dl/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dg/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+/* recorrido del alcance: lista de lugares con su coordenada y su avance (0–1) sobre la ruta */
+function rutaGPS(al){
+  const nombres=[al.origen,...String(al.paradas||'').split(',').map(x=>x.trim()).filter(x=>x&&x!=='—'),al.destino];
+  const pts=nombres.filter(n=>COORD[n]).map(n=>({n,c:COORD[n],acum:0}));
+  for(let i=1;i<pts.length;i++) pts[i].acum=pts[i-1].acum+distGeo(pts[i-1].c,pts[i].c);
+  const tot=pts.length?pts[pts.length-1].acum:0; pts.forEach(q=>q.f=tot?q.acum/tot:0); return {pts,tot};
+}
+/* avance (0–1) que ya garantiza el último paso confirmado */
+function avancePaso(v,n){ if(!n) return 0; const pl=planViaje(v), ps=by(PASOS,n,'n'), [ref,val]=ps.ref;
+  if(ref==='avance') return val; if(ref==='lle') return pl.horas?Math.min(1,Math.max(0,1+val/(pl.horas*60))):1; return 0; }
+/* posición GPS actual de la unidad que lleva el ticket */
+function gpsEstado(v,t){
+  const al=by(DB.alcances,v.alcance), r=rutaGPS(al), pl=planViaje(v), veh=by(DB.vehiculos,v.veh);
+  let f=0, estado='En la terminal de origen';
+  if(['RESERVADO','PAGADO','VENCIDO','CANCELADO'].includes(t.estado)||!t.paso){ f=0; }
+  else if(t.paso>=6){ f=1; estado='En la terminal de destino'; }
+  else { const ft=pl.lle>pl.sal?(AHORA-pl.sal)/(pl.lle-pl.sal):0; f=Math.min(0.995,Math.max(avancePaso(v,t.paso),ft,0.01)); estado='En ruta'; }
+  let c=r.pts.length?r.pts[0].c:[0,0], prev=r.pts[0], next=r.pts[r.pts.length-1];
+  for(let i=1;i<r.pts.length;i++){ if(f<=r.pts[i].f+1e-9){ const a=r.pts[i-1], b=r.pts[i], k=b.f>a.f?(f-a.f)/(b.f-a.f):0;
+      c=[a.c[0]+(b.c[0]-a.c[0])*k,a.c[1]+(b.c[1]-a.c[1])*k]; prev=a; next=b; break; } }
+  const enRuta=estado==='En ruta', vel=enRuta?Math.round(al.km/al.horas):0;
+  return { f, c, lat:c[0], lng:c[1], kmRec:Math.round(f*al.km), kmTot:al.km, vel, estado, prev, next, pts:r.pts,
+    gps:(veh&&veh.gps)||'—', placa:veh?veh.placa:'—', ultima:new Date(AHORA),
+    cerca:enRuta?(f>=0.995?'Llegando a '+next.n:'Entre '+prev.n+' y '+next.n):(f>=1?al.destino:al.origen) };
+}
+/* mapa esquemático del recorrido con la posición GPS (SVG) */
+function mapaGPS(g){
+  const W=420,H=230,pad=34, lats=g.pts.map(q=>q.c[0]), lngs=g.pts.map(q=>q.c[1]);
+  const la0=Math.min(...lats), la1=Math.max(...lats), lo0=Math.min(...lngs), lo1=Math.max(...lngs);
+  const kx=Math.cos(((la0+la1)/2)*Math.PI/180), spanX=Math.max(0.5,(lo1-lo0)*kx), spanY=Math.max(0.5,la1-la0);
+  const sc=Math.min((W-2*pad)/spanX,(H-2*pad)/spanY), ox=(W-spanX*sc)/2, oy=(H-spanY*sc)/2;
+  const X=c=>ox+((c[1]-lo0)*kx)*sc, Y=c=>oy+(la1-c[0])*sc;
+  const line=g.pts.map(q=>X(q.c).toFixed(1)+','+Y(q.c).toFixed(1)).join(' ');
+  const dots=g.pts.map((q,i)=>{ const x=X(q.c), y=Y(q.c), end=i===0||i===g.pts.length-1, right=x<W-90;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${end?5.5:3.5}" fill="${end?'#222':'#fff'}" stroke="#222" stroke-width="2"/><text x="${(x+(right?9:-9)).toFixed(1)}" y="${(y+4).toFixed(1)}" font-size="11" text-anchor="${right?'start':'end'}" fill="#222">${esc(q.n)}</text>`; }).join('');
+  const px=X(g.c), py=Y(g.c);
+  return `<svg class="gpsmap" viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa del recorrido con la posición GPS"><rect width="${W}" height="${H}" fill="#f4f1e8" stroke="#222" stroke-width="2"/>
+   <polyline points="${line}" fill="none" stroke="#999" stroke-width="3" stroke-dasharray="6 5"/>${dots}
+   <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="13" fill="#f2c200" fill-opacity=".35"><animate attributeName="r" values="9;17;9" dur="2s" repeatCount="indefinite"/></circle>
+   <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="6" fill="#d12" stroke="#fff" stroke-width="2"/></svg>`;
+}
+/* tarjeta de ubicación GPS (reporte interno y portal) */
+function gpsCardHTML(v,t){
+  const g=gpsEstado(v,t), pct=Math.round(g.f*100);
+  return `<div class="gpscard"><div class="gpshead"><b>📍 Ubicación GPS</b> <span class="pill ${g.estado==='En ruta'?'ok':'mute'}">${g.estado.toUpperCase()}</span></div>
+   ${mapaGPS(g)}
+   <div class="gpsgrid"><span>Posición</span><b>${esc(g.cerca)}</b><span>Coordenadas</span><b>${g.lat.toFixed(4)}, ${g.lng.toFixed(4)}</b>
+   <span>Recorrido</span><b>${g.kmRec} de ${g.kmTot} km (${pct} %)</b><span>Velocidad</span><b>${g.vel} km/h</b>
+   <span>Equipo / placa</span><b>${esc(g.gps)} · ${esc(g.placa)}</b><span>Última señal</span><b>${hhmm(g.ultima)}</b></div>
+   <div class="gpsbar"><i style="width:${pct}%"></i></div></div>`;
+}
 
 function siguienteId(prefix, arr, len=2){
   let n = arr.length+1; while(arr.some(x=>x.id===prefix+pad(n,len))) n++;
@@ -320,8 +386,9 @@ function resolverViaje(prod, alc, fecha){
   if(reglaActiva('REG-07') && alc.horas>vent) return {error:'REG-07: la ruta '+alc.origen+' → '+alc.destino+' dura '+alc.horas+' h y el horario del producto ('+th.diaSalida+' '+th.hSalida+' → '+th.diaLlegada+' '+th.hLlegada+') solo permite '+n2(vent)+' h. Elija otro producto u horario.'};
   const rig = reglaActiva('REG-03');
   const ocupV = DB.viajes.filter(v=>v.fecha===fecha).map(v=>v.veh), ocupC = DB.viajes.filter(v=>v.fecha===fecha).map(v=>v.cont);
-  const veh = DB.vehiculos.find(v=>(!rig||v.tipo===prod.tv) && v.estado==='OK' && !ocupV.includes(v.id));
-  if(!veh) return {error:'No hay un vehículo tipo '+nomTV(prod.tv)+' disponible el '+dmy(fecha)+' (en uso o en mantenimiento).'};
+  const gpsReq = reglaActiva('REG-08');
+  const veh = DB.vehiculos.find(v=>(!rig||v.tipo===prod.tv) && v.estado==='OK' && !ocupV.includes(v.id) && (!gpsReq||v.gps));
+  if(!veh) return {error:'No hay un vehículo tipo '+nomTV(prod.tv)+' con GPS disponible el '+dmy(fecha)+' (en uso, en mantenimiento o sin equipo GPS).'};
   const con = DB.contenedores.find(c=>(!rig||c.tipo===prod.tc) && c.estado==='OK' && !ocupC.includes(c.id));
   if(!con) return {error:'No hay un contenedor '+nomTC(prod.tc)+' disponible el '+dmy(fecha)+' (en uso o en mantenimiento).'};
   return {viaje:{id:siguienteId('VJ-',DB.viajes,4),prod:prod.id,alcance:alc.id,fecha,veh:veh.id,cont:con.id}, nuevo:true};
@@ -350,7 +417,7 @@ function verificarEspacio(viaje, esp, prod){
   const D = s => new Date('2026-06-24T'+s+':00');
   const DIM = {'CG-001':[100,50,100,60],'CG-002':[100,100,100,80],'CG-003':[150,100,100,350],'CG-004':[200,100,100,500],'CG-005':[100,80,50,120],'CG-006':[50,40,25,8],'CG-007':[50,40,25,25]};   // largo, ancho, alto (cm), peso (kg) por bulto
   const mk = (id,viaje,cli,cg,uds,estado,paso,creado,hist,extra)=>{
-    const v = by(DB.viajes,viaje), p = by(DB.productos,v.prod), tar = tarifaDe(p), dm = DIM[cg], e = espacioDe({cant:uds,largo:dm[0],ancho:dm[1],alto:dm[2],peso:dm[3]});
+    const v = by(DB.viajes,viaje), p = by(DB.productos,v.prod), tar = tarifaDe(p,v.alcance), dm = DIM[cg], e = espacioDe({cant:uds,largo:dm[0],ancho:dm[1],alto:dm[2],peso:dm[3]});
     const n = esExpress(p) ? viajeCap(v).n : e.n, pr = estimarPrecio(tar,n);
     const t = {id,viaje,cliente:cli,tb:cg,unidades:uds,dim:{l:dm[0],a:dm[1],h:dm[2],p:dm[3]},n,m3:e.m3,kg:e.kg,tarifa:tar.id,sub:pr.sub,igv:pr.igv,total:pr.total,estado,paso,creado,hist:hist||[],
       medio:null,op:null};
@@ -358,8 +425,8 @@ function verificarEspacio(viaje, esp, prod){
     if(estado!=='RESERVADO'&&estado!=='VENCIDO'){ t.medio='tarjeta'; t.pagado=creado; }
     DB.tickets.push(t);
   };
-  mk('TK-88101','VJ-0001','70112233','CG-001',10,'EN RUTA',3,D('06:20'),[{paso:1,real:D('06:58'),por:'Autómata de carga'},{paso:2,real:D('08:02'),por:'Sistema'},{paso:3,real:D('10:12'),por:'Sistema'}]);
-  mk('TK-88102','VJ-0001','20601234567','CG-001',48,'EN RUTA',3,D('06:25'),[{paso:1,real:D('06:59'),por:'Autómata de carga'},{paso:2,real:D('08:02'),por:'Sistema'},{paso:3,real:D('10:12'),por:'Sistema'}]);
+  mk('TK-88101','VJ-0001','70112233','CG-001',10,'EN RUTA',3,D('06:20'),[{paso:1,real:D('06:58'),por:'Autómata de carga'},{paso:2,real:D('08:02'),por:'GPS de la unidad'},{paso:3,real:D('10:12'),por:'GPS de la unidad'}]);
+  mk('TK-88102','VJ-0001','20601234567','CG-001',48,'EN RUTA',3,D('06:25'),[{paso:1,real:D('06:59'),por:'Autómata de carga'},{paso:2,real:D('08:02'),por:'GPS de la unidad'},{paso:3,real:D('10:12'),por:'GPS de la unidad'}]);
   mk('TK-80012','VJ-0002','45871236','CG-002',30,'PAGADO',0,D('09:05'),[]);
   mk('TK-80014','VJ-0003','20601234567','CG-003',8,'PAGADO',0,D('09:10'),[]);
   mk('TK-80013','VJ-0003','70112233','CG-003',4,'RESERVADO',0,D('09:40'),[]);

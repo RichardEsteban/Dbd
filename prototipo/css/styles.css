@@ -204,3 +204,11 @@ a.tl:hover{background:var(--acc)} a.tl.active{background:var(--acc);border-left-
 .assoc{border:2px solid var(--line);border-radius:4px;background:#fff;padding:10px 14px;margin-top:14px;box-shadow:3px 3px 0 #2223}
 .agrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px} .ablk{display:flex;flex-wrap:wrap;gap:6px;align-items:center} .ablk>b{width:100%;font-size:12.5px}
 .achip{border:1.5px solid var(--line);background:#fff6cc;border-radius:12px;padding:0 10px;font-size:12.5px;text-decoration:none;color:var(--ink)} .achip:hover{background:var(--acc)}
+
+/* seguimiento GPS */
+.gpscard{border:2px solid var(--line);background:#fff;padding:12px;margin:12px 0;box-shadow:3px 3px 0 #2223}
+.gpshead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.gpsmap{width:100%;max-width:560px;height:auto;display:block}
+.gpsgrid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 14px;margin:10px 0;font-size:13px} .gpsgrid span{opacity:.7}
+.gpsbar{height:8px;background:#eee;border:1px solid var(--line)} .gpsbar i{display:block;height:100%;background:var(--acc)}
+@media(max-width:600px){.gpsgrid{grid-template-columns:auto 1fr}}

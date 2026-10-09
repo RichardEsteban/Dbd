@@ -10,20 +10,20 @@ function portalLayout(cur,inner){
   const crumb='Portal del cliente › '+((PORTAL_NAV.find(x=>x[0]===cur.key)||[0,cur.key==='p-pago'?'Pago del envío':''])[1]);
   return `<header class="top"><div class="brand">🚚 <b>Transporte Seguro</b> <small>portal del cliente</small></div>
      <div class="who">${esc(cli?cli.nombre:'')} ${interno?`<a href="#/${HOME[SESSION.role]}" class="lnk">← Volver al sistema interno</a>`:''} <a href="#/login" class="lnk">Salir</a></div></header>
-     <nav class="side"><div class="tg"><div class="tl d0">Portal del cliente</div>${nav}</div><div class="legend">Reserva espacio en un contenedor (1 ticket = 1 m³), paga en línea y sigue tu envío por sus 7 pasos.</div></nav>
+     <nav class="side"><div class="tg"><div class="tl d0">Portal del cliente</div>${nav}</div><div class="legend">Reserva espacio en un contenedor (1 ticket = 1 m³), paga en línea y sigue tu envío por GPS y por sus 7 pasos.</div></nav>
      <main class="main"><div class="crumb">${crumb}</div>${inner}</main>`;
 }
-const precioDe = p => { const t=tarifaDe(p); if(!t) return ''; return t.base==='fija'?money(t.valor)+' por envío exclusivo':money(t.valor)+' por ticket (1 m³)'; };
+const precioDe = p => { const ts=tarifasDeServicio(p.ts).filter(t=>tarifaVigente(t)); if(!ts.length) return ''; const min=Math.min(...ts.map(t=>t.valor)), base=ts[0].base; return base==='fija'?money(min)+' por envío exclusivo (según ruta)':money(min)+' por ticket de 1 m³ (según ruta)'; };
 route('p-catalogo',{title:'',view(){
-  const cards=DB.productos.filter(p=>p.activo&&tarifaVigente(tarifaDe(p))).map(p=>{ const i=prodInfo(p), exp=esExpress(p);
+  const cards=DB.productos.filter(p=>p.activo&&tarifasDeServicio(p.ts).some(t=>tarifaVigente(t))).map(p=>{ const i=prodInfo(p), exp=esExpress(p);
     return `<div class="pcard"><div class="pcico">${ICON[p.tb]||'📦'}</div><h3>Carga ${esc(i.tb.material.toLowerCase())}</h3><p class="pdesc">Viaja en ${esc(nomTV(p.tv).toLowerCase())} con contenedor ${esc(nomTC(p.tc).toLowerCase())}. Sale los <b>${i.th.diaSalida}</b> a las ${h12(i.th.hSalida)}.</p>
      <div class="ptags"><span class="ptag ${exp?'exp':''}">${esc(i.ts.modalidad)}</span><span class="ptag">Contenedor ${esc(i.tc.nombre.toLowerCase())} · ${esc(i.tc.temp)}</span><span class="ptag">${esc(i.prot.nombre)}</span></div>
      ${exp?'<p class="pmute">Servicio exclusivo: el contenedor viaja solo con tu carga.</p>':''}
      <div class="pprice">Desde <b>${precioDe(p)}</b></div><a class="pbtn" href="#/p-cotizar" data-act="p-pick" data-prod="${p.id}">Cotizar este servicio</a></div>`; }).join('');
-  return `<section class="phero"><div><span class="pkick">Catálogo de servicios</span><h1>Transportamos tu carga con seguimiento paso a paso</h1><p>Elige el tipo de carga, reserva el espacio que necesitas (1 ticket = 1 m³) y sigue cada etapa del traslado. Sin llamadas, sin GPS externo.</p><a class="pbtn big" href="#/p-cotizar">Cotizar envío</a></div><div class="pheroart">🚚📦</div></section>
+  return `<section class="phero"><div><span class="pkick">Catálogo de servicios</span><h1>Transportamos tu carga con seguimiento paso a paso</h1><p>Elige el tipo de carga, reserva el espacio que necesitas (1 ticket = 1 m³) y sigue cada etapa del traslado. Con ubicación GPS de tu carga, sin llamadas.</p><a class="pbtn big" href="#/p-cotizar">Cotizar envío</a></div><div class="pheroart">🚚📦</div></section>
    <h2 class="ph2">¿Qué transportamos?</h2><div class="pgrid">${cards}</div>
    <h2 class="ph2">Rutas disponibles</h2><div class="pchips">${DB.alcances.filter(a=>a.km).map(a=>`<a class="pchip" href="#/p-cotizar" data-act="p-ruta" data-o="${esc(a.origen)}" data-d="${esc(a.destino)}">${esc(a.origen)} → ${esc(a.destino)} <small>${n2(a.km)} km · ${a.horas} h</small></a>`).join('')}</div>
-   <h2 class="ph2">Cómo funciona</h2><div class="psteps"><div><b>1</b><h4>Reserva tu espacio</h4><p>Digitas las medidas y el peso de tu carga; calculamos los tickets (m³) y el peso por eje que ocupará.</p></div><div><b>2</b><h4>Elige cómo pagar</h4><p>Ves el precio con IGV, reservamos tu espacio ${politica('POL-02',15)} minutos y eliges tarjeta, PagoEfectivo o banco.</p></div><div><b>3</b><h4>Sigue los 7 pasos</h4><p>Recibido, despachado, en tránsito, en parada, en reparto, entregado y cerrado.</p></div></div>`; }});
+   <h2 class="ph2">Cómo funciona</h2><div class="psteps"><div><b>1</b><h4>Reserva tu espacio</h4><p>Digitas las medidas y el peso de tu carga; calculamos los tickets (m³) y el peso por eje que ocupará.</p></div><div><b>2</b><h4>Elige cómo pagar</h4><p>Ves el precio con IGV, reservamos tu espacio ${politica('POL-02',15)} minutos y eliges tarjeta, PagoEfectivo o banco.</p></div><div><b>3</b><h4>Sigue los 7 pasos</h4><p>Recibido, despachado, en tránsito, en parada, en reparto, entregado y cerrado, con la ubicación GPS de tu unidad.</p></div></div>`; }});
 ACT['p-pick']=el=>{ const p=by(DB.productos,el.dataset.prod); UI.pd=Object.assign(newDraft(),{cliente:PCLI,tb:p.tb,prod:p.id,uds:''}); };
 
 UI.pd = null;
@@ -38,8 +38,8 @@ route('p-cotizar',{title:'',view(){
   const espd = espD(d).n?espD(d):null;
   let right='<div class="pempty">Completa el formulario para ver tu tarifa y el espacio disponible.</div>';
   if(d.res){ if(!d.res.viaje) right=`<div class="perr">${d.res.error}</div>`;
-   else { const tar=tarifaDe(prod), ver=d.res.ver, pr=estimarPrecio(tar,ver.need), v=d.res.viaje, pl=planViaje(v);
-    right=`<div class="pprice2"><small>Total estimado (incluye IGV)</small><b>${money(pr.total)}</b><span>${pr.detalle}</span></div>
+   else { const tar=tarifaDe(prod,d.alc), ver=d.res.ver, pr=estimarPrecio(tar,ver.need), v=d.res.viaje, pl=planViaje(v);
+    right=`<div class="pprice2"><small>Total estimado (incluye IGV)</small><b>${money(pr.total)}</b><span>${pr.detalle}</span><small>Tarifa ${esc(tar.id)} · ${esc(nomSer(tar.ts))} · ${esc(nomAL(tar.alcance))}</small></div>
      <div class="prow"><span>Espacio a reservar</span><b>${ver.need} ticket(s) · ${n2(d.res.esp.kg)} kg${ver.express?' (Express)':''}</b></div>
      <div class="prow"><span>Disponible ese día</span><b>${ver.libre.n} ticket(s) · ${n2(ver.libre.kg)} kg</b></div>
      <div class="prow"><span>Salida / llegada estimada</span><b>${hhmm(pl.sal)} → ${hhmm(pl.lle)}</b></div>
@@ -95,7 +95,8 @@ route('p-rastrear',{title:'',view(arg){
   const sel=`<select data-change="p-pick-t">${optsHTML(mios.map(x=>[x.id,x.id+' · '+nomAL(by(DB.viajes,x.viaje).alcance)]),t.id)}</select>`;
   return `<div class="ptrackhead"><div><span class="pkick">Seguimiento</span><h1 class="ph1">Ticket ${t.id}</h1><p class="pmute">${esc(nomAL(v.alcance))} · ${esc(nomCG(p.tb))} · ${t.n} ticket(s) · ${n2(t.kg)} kg reservados</p></div>${sel}</div>
    <div class="ptrack">${dots}</div>
-   <div class="pcols"><div class="pbox"><h3>Paso ${idx} de ${seq.pasos.length}</h3><div class="pbig">${actual}</div><p>${sig}</p>${t.estado==='RESERVADO'?`<a class="pbtn" href="#/p-pago/1/${t.id}">💳 Pagar ahora</a> `:''}${cancelable(t)?`<button class="pbtn ghost" data-act="p-cancel" data-id="${t.id}">Cancelar ticket</button>`:''}<p class="pnote">🤖 Traslado automatizado: nuestro sistema confirma cada paso de la secuencia, sin depender de un GPS.</p></div>
+   <div class="pbox" style="margin-bottom:16px">${gpsCardHTML(v,t)}</div>
+   <div class="pcols"><div class="pbox"><h3>Paso ${idx} de ${seq.pasos.length}</h3><div class="pbig">${actual}</div><p>${sig}</p>${t.estado==='RESERVADO'?`<a class="pbtn" href="#/p-pago/1/${t.id}">💳 Pagar ahora</a> `:''}${cancelable(t)?`<button class="pbtn ghost" data-act="p-cancel" data-id="${t.id}">Cancelar ticket</button>`:''}<p class="pnote">📍 Tu unidad lleva un equipo GPS: el mapa muestra su ubicación y confirma cada paso de la secuencia.</p></div>
     <div class="pbox"><h3>Tu viaje</h3><div class="prow"><span>Salida</span><b>${diaDe(v.fecha)} ${dmy(v.fecha)} · ${hhmm(pl.sal)}</b></div><div class="prow"><span>Llegada estimada</span><b>${hhmm(pl.lle)}</b></div><div class="prow"><span>Total</span><b>${money(t.total)}</b></div><div class="prow"><span>Estado</span><b>${t.estado}</b></div></div></div>`; }});
 ACT['p-pick-t']=el=>go('p-rastrear/'+el.value);
 

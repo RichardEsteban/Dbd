@@ -121,9 +121,9 @@ const INFO = {
   tv:'Aquí solo se definen las categorías de vehículo. La capacidad en kg es N° de ejes × peso máximo por eje (política POL-05): a más peso, más ejes. Las placas y el estado de cada unidad se registran en la flota.',
   tc:'El tipo solo define material y temperatura. El volumen (m³, y por tanto los tickets) es de cada contenedor y se registra en la flota.',
   car:'El tipo de carga solo tiene código y material. Las dimensiones y el peso los digita el cliente al cotizar; el estado del envío se ve en el Registro de flota.',
-  ser:'Económico: se cobra por espacio comprometido (tickets). Express: tarifa fija por la reserva exclusiva de todo el contenedor; es exclusivo de una sola carga, cualquiera sea su tipo.',
+  ser:'Económico: se cobra por espacio comprometido (tickets). Express: tarifa fija por la reserva exclusiva de todo el contenedor; es exclusivo de una sola carga, cualquiera sea su tipo. La tarifa de cada servicio se define por alcance (ruta) en el Reporte de tarifas.',
   hor:'El horario fija la salida y la llegada programada: es la ventana en la que debe viajar el producto. La llegada estimada de cada envío es la salida más la duración del Alcance, y debe caber en esa ventana (REG-07).',
-  al:'La duración es una estimación: se usa para calcular la hora esperada de cada paso del seguimiento, sin depender de un GPS.',
+  al:'La duración es una estimación: se usa para calcular la hora esperada de cada paso, que se contrasta con la posición real que reporta el GPS de la unidad. Las paradas son lugares del recorrido, no puntos de control. Cada tarifa se asocia a un tipo de servicio y a un alcance.',
   ta:'Los autómatas físicos se registran en la flota. Cada paso del envío que lo confirma un autómata exige uno de este tipo, disponible.'
 };
 route('parametros',{title:'Parámetros generales',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(arg){
@@ -142,13 +142,11 @@ const PROD_CFG = {key:'prod',tabla:'productos',label:'Producto',prefix:'PROD',ca
     if(v.activo){
       if(v.tv&&!DB.vehiculos.some(u=>u.tipo===v.tv)) e.tv='No hay ningún vehículo de este tipo en la flota';
       if(v.tc&&!DB.contenedores.some(c=>c.tipo===v.tc)) e.tc='No hay ningún contenedor de este tipo en la flota';
-      const tar=row?tarifaDe(row):null; const s=by(DB.servicios,v.ts);
-      if(!tar||!tarifaVigente(tar)) e.activo='Un producto ACTIVO necesita una tarifa vigente (revise el Reporte de tarifas)';
-      else if(s&&tar.modalidad!==s.modalidad) e.ts='La tarifa del producto es '+tar.modalidad+' y el tipo de servicio es '+s.modalidad; }
+      if(v.ts&&!tarifasDeServicio(v.ts).some(t=>tarifaVigente(t))) e.activo='Un producto ACTIVO necesita que su tipo de servicio tenga al menos una tarifa vigente en alguna ruta (revise el Reporte de tarifas)'; }
     return e; },
   used:r=>[...DB.viajes.filter(v=>v.prod===r.id).map(v=>'Viaje '+v.id)]};
 route('productos',{title:'Catálogo de productos',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(){
-  return guide(['Los productos se arman combinando parámetros (no se escriben libremente).','No puede repetirse la misma combinación.','Un producto ACTIVO exige que exista flota de esos tipos y una tarifa vigente (ver el reporte de tarifas).','Solo los productos ACTIVOS aparecen al asignar un ticket y en el catálogo web del cliente.'],0)+
+  return guide(['Los productos se arman combinando parámetros (no se escriben libremente).','No puede repetirse la misma combinación.','Un producto ACTIVO exige que exista flota de esos tipos y que su tipo de servicio tenga tarifa vigente (la tarifa se asocia al servicio y a la ruta; ver el reporte de tarifas).','Solo los productos ACTIVOS aparecen al asignar un ticket y en el catálogo web del cliente.'],0)+
    `<div class="nat"><span class="natt">Naturaleza del producto</span>${crudView(PROD_CFG)}</div>`; }});
 
 const REGLA_CFG={key:'reg',tabla:'reglas',label:'Regla',prefix:'REG-',canDisable:false,
@@ -186,10 +184,10 @@ route('tincidentes',{title:'Tipos de incidente',crumb:'2.1 Gerencial › 2.1.1 M
 const envioCol = campo => ({label:'Carga en envío',f:r=>{ const u=unidadEnvio(campo,r.id); return u.estado==='LIBRE'?pill('LIBRE'):pill(u.estado)+' <small>'+esc(u.carga)+' · '+esc(u.viaje)+'</small>'; }});
 const FLOTA_CFG = {
   veh:{key:'fveh',tabla:'vehiculos',label:'Vehículo',prefix:'r-veh-',padLen:3,canDisable:true,
-    cols:[{label:'Código',k:'id'},{label:'Placa',k:'placa'},{label:'Tipo',f:r=>esc(nomTV(r.tipo))},{label:'Ejes',f:r=>(tvDe(r.tipo)||{}).ejes},{label:'Capacidad',f:r=>n2(capKgVeh(r))+' kg'},ESTADO_UNIDAD,envioCol('veh')],
-    fields:[{k:'placa',label:'Placa',type:'text',req:1,ph:'ABC123'},{k:'tipo',label:'Tipo de vehículo',type:'select',opts:todos('tiposVehiculo',x=>x.nombre),req:1,help:'La unidad hereda los ejes del tipo; su capacidad en kg es ejes × peso máximo por eje.'},{k:'estado',label:'Estado operativo',type:'select',opts:estOpts,req:1,def:'OK'}],
-    validate:(v,row)=>{ const e={}; if(v.placa&&!/^[A-Za-z0-9]{6}$/.test(v.placa)) e.placa='La placa tiene 6 caracteres alfanuméricos'; else if(DB.vehiculos.some(x=>x!==row&&x.placa.toUpperCase()===String(v.placa).toUpperCase())) e.placa='La placa '+v.placa+' ya está registrada'; return e; },
-    onSave:r=>{ r.placa=String(r.placa).toUpperCase(); },
+    cols:[{label:'Código',k:'id'},{label:'Placa',k:'placa'},{label:'Tipo',f:r=>esc(nomTV(r.tipo))},{label:'Ejes',f:r=>(tvDe(r.tipo)||{}).ejes},{label:'Capacidad',f:r=>n2(capKgVeh(r))+' kg'},{label:'Equipo GPS',f:r=>esc(r.gps||'—')},ESTADO_UNIDAD,envioCol('veh')],
+    fields:[{k:'placa',label:'Placa',type:'text',req:1,ph:'ABC123'},{k:'tipo',label:'Tipo de vehículo',type:'select',opts:todos('tiposVehiculo',x=>x.nombre),req:1,help:'La unidad hereda los ejes del tipo; su capacidad en kg es ejes × peso máximo por eje.'},{k:'gps',label:'Equipo GPS',type:'text',req:1,ph:'GPS-011',help:'Cada vehículo lleva un equipo GPS: es la fuente de su ubicación en el seguimiento del envío.'},{k:'estado',label:'Estado operativo',type:'select',opts:estOpts,req:1,def:'OK'}],
+    validate:(v,row)=>{ const e={}; if(v.gps&&DB.vehiculos.some(x=>x!==row&&String(x.gps).toUpperCase()===String(v.gps).toUpperCase())) e.gps='El equipo '+v.gps+' ya está asignado a otro vehículo'; if(v.placa&&!/^[A-Za-z0-9]{6}$/.test(v.placa)) e.placa='La placa tiene 6 caracteres alfanuméricos'; else if(DB.vehiculos.some(x=>x!==row&&x.placa.toUpperCase()===String(v.placa).toUpperCase())) e.placa='La placa '+v.placa+' ya está registrada'; return e; },
+    onSave:r=>{ r.placa=String(r.placa).toUpperCase(); r.gps=String(r.gps).toUpperCase(); },
     used:r=>DB.viajes.filter(v=>v.veh===r.id).map(v=>'Viaje '+v.id)},
   con:{key:'fcon',tabla:'contenedores',label:'Contenedor',prefix:'r-cont-',padLen:3,canDisable:true,
     cols:[{label:'Código',k:'id'},{label:'Tipo',f:r=>esc(nomTC(r.tipo))},{label:'Volumen',f:r=>r.vol+' m³ ('+r.vol+' tickets)'},{label:'Temperatura',f:r=>esc((tcDe(r.tipo)||{}).temp)},ESTADO_UNIDAD,envioCol('cont')],
@@ -231,6 +229,9 @@ function calcRes(d){
   d.res=null; if(!(d.prod&&d.alc&&d.fecha)) return;
   const prod=by(DB.productos,d.prod), alc=by(DB.alcances,d.alc), th=by(DB.horarios,prod.th), esp=espD(d);
   if(reglaActiva('REG-04') && diaDe(d.fecha)!==th.diaSalida){ d.res={ok:false,error:'REG-04: este producto sale los <b>'+th.diaSalida+'</b> y el '+dmy(d.fecha)+' es '+diaDe(d.fecha).toLowerCase()+'. Elija una de las fechas sugeridas.'}; return; }
+  const tar=tarifaDe(prod,alc.id);
+  if(!tar){ d.res={ok:false,error:'No hay tarifa definida para el servicio «'+nomSer(prod.ts)+'» en la ruta '+alc.origen+' → '+alc.destino+'. Elija otra ruta o servicio.'}; return; }
+  if(!tarifaVigente(tar,d.fecha)){ d.res={ok:false,error:'La tarifa '+tar.id+' ('+nomSer(prod.ts)+' · '+alc.origen+' → '+alc.destino+') no está vigente el '+dmy(d.fecha)+' (vigencia '+dmy(tar.desde)+' – '+dmy(tar.hasta)+').'}; return; }
   const r=resolverViaje(prod,alc,d.fecha); if(r.error){ d.res={ok:false,error:r.error}; return; }
   const ver=verificarEspacio(r.viaje,esp,prod);
   d.res={ok:ver.ok,viaje:r.viaje,nuevo:r.nuevo,esp,ver,error:ver.ok?'':(ver.motivo.startsWith('REG-')?ver.motivo:'REG-01: '+ver.motivo)};
@@ -297,7 +298,7 @@ function calendarioHTML(d,act){
    <div class="calleg"><i class="lg free"></i> Disponible <i class="lg low"></i> Poco cupo <i class="lg full"></i> Sin cupo <i class="lg none"></i> Sin salida · el cupo considera lo que va a enviar (${pedido.n} ticket(s), ${n2(pedido.kg)} kg)</div></div>`; }
 ACT['cal-nav']=el=>{ let {y,m}=UI.cal; m+=+el.dataset.dir; if(m<0){ m=11; y--; } if(m>11){ m=0; y++; } UI.cal={y,m}; if(location.hash.startsWith('#/ticket')){ $('#tbody').innerHTML=t2(D()); } else render(); };
 
-const prodsDisponibles = d => DB.productos.filter(p=>p.activo&&p.tb===d.tb&&tarifaVigente(tarifaDe(p)));
+const prodsDisponibles = d => DB.productos.filter(p=>p.activo&&p.tb===d.tb&&tarifasDeServicio(p.ts).some(t=>tarifaVigente(t)));
 function t2(d){
   const prods=prodsDisponibles(d).map(p=>[p.id,p.id+' · '+nombreProducto(p)]);
   const al=by(DB.alcances,d.alc);
@@ -327,21 +328,21 @@ ACT['t2-fecha']=el=>{ const d=D(); d.fecha=el.dataset.f; calcRes(d); $('#tbody')
 ACT['t2-next']=()=>{ if(ok2(D())) go('ticket/3'); };
 
 function t3(d){
-  const prod=by(DB.productos,d.prod), tar=tarifaDe(prod), ver=d.res.ver, pr=estimarPrecio(tar,ver.need), esp=d.res.esp;
+  const prod=by(DB.productos,d.prod), tar=tarifaDe(prod,d.alc), ver=d.res.ver, pr=estimarPrecio(tar,ver.need), esp=d.res.esp;
   return `<h3>3. Estimación del precio del servicio</h3>
    <table class="tbl"><thead><tr><th>Concepto</th><th>Detalle</th><th class="r">Importe</th></tr></thead><tbody>
     <tr><td>Espacio comprometido</td><td>${ver.need} ticket(s) (${n2(esp.m3)} m³ reales) · ${n2(esp.kg)} kg en ${esc(d.res.viaje.cont)} / ${esc(vehDe(d.res.viaje).placa)}, ${dmy(d.fecha)}</td><td class="r">—</td></tr>
-    <tr><td>Tarifa aplicada</td><td>${esc(tar.id)} · ${esc(tar.modalidad)} · ${BASE_TXT[tar.base]} · vigente ${dmy(tar.desde)} – ${dmy(tar.hasta)}</td><td class="r">—</td></tr>
+    <tr><td>Tarifa aplicada</td><td>${esc(tar.id)} · ${esc(nomSer(tar.ts))} · ${esc(nomAL(tar.alcance))} · ${esc(tar.modalidad)} · ${BASE_TXT[tar.base]} · vigente ${dmy(tar.desde)} – ${dmy(tar.hasta)}</td><td class="r">—</td></tr>
     <tr><td>Servicio de transporte</td><td>${pr.detalle}</td><td class="r">${money(pr.sub)}</td></tr>
     <tr><td>IGV</td><td>${pr.igvPct} % (Política POL-01)</td><td class="r">${money(pr.igv)}</td></tr>
     <tr class="tot"><td colspan="2"><b>Total estimado</b></td><td class="r"><b>${money(pr.total)}</b></td></tr></tbody></table>
-   <p class="hint">La estimación depende de los datos del <a href="#/rtarifas">Reporte de tarifas</a> y de la política de IGV.</p>
+   <p class="hint">La tarifa se asocia al <b>tipo de servicio</b> y a la <b>ruta</b>; la estimación lee el <a href="#/rtarifas">Reporte de tarifas</a> y la política de IGV.</p>
    <div class="nav"><a class="btn" href="#/ticket/2">← Atrás</a><a class="btn okb" href="#/ticket/4">Continuar →</a></div>`;
 }
 
 function t4(d){
   if(d.ticket){ const t=d.ticket; return `<h3>4. Servicio confirmado</h3>${msg('ok','✔ Ticket <b>'+t.id+'</b> generado y espacio reservado ('+t.n+' ticket(s)). Estado: '+t.estado)}<div class="nav"><span></span><a class="btn okb" href="#/ticket/5">Ir al medio de pago →</a></div>`; }
-  const prod=by(DB.productos,d.prod), tar=tarifaDe(prod), ver=d.res.ver, pr=estimarPrecio(tar,ver.need), v=d.res.viaje, i=prodInfo(prod), seq=secuenciaDe(v);
+  const prod=by(DB.productos,d.prod), tar=tarifaDe(prod,d.alc), ver=d.res.ver, pr=estimarPrecio(tar,ver.need), v=d.res.viaje, i=prodInfo(prod), seq=secuenciaDe(v);
   return `<h3>4. Confirmación del servicio</h3>
    <div class="cards2"><div class="mini"><b>Resumen</b><br>Cliente: ${esc(by(DB.clientes,d.cliente).nombre)}<br>Carga: ${d.uds} bulto(s) de ${esc(nomCG(d.tb))} (${d.largo}×${d.ancho}×${d.alto} cm · ${d.peso} kg c/u)<br>Producto: ${esc(prod.id)} · ${esc(nombreProducto(prod))}<br>Ruta: ${esc(nomAL(d.alc))}<br>Viaje: ${dmy(v.fecha)} · ${esc(vehDe(v).placa)} · ${esc(v.cont)}</div>
    <div class="mini"><b>Se comprometerá</b><br><span class="big">${ver.need} ticket(s) · ${n2(d.res.esp.kg)} kg</span><br>Total a pagar: <b>${money(pr.total)}</b><br>Reserva: ${politica('POL-02',15)} min para pagar</div></div>
@@ -355,7 +356,7 @@ function emitirTicket(d){
   const esp=espD(d), ver=verificarEspacio(r.viaje,esp,prod);      // verificación final en tiempo real
   if(!ver.ok) return {error:ver.motivo+' (otro ticket ocupó el espacio)'};
   if(!by(DB.viajes,r.viaje.id)) DB.viajes.push(r.viaje);
-  const tar=tarifaDe(prod), pr=estimarPrecio(tar,ver.need); let n=88103; while(DB.tickets.some(t=>t.id==='TK-'+n)) n++;
+  const tar=tarifaDe(prod,alc.id), pr=estimarPrecio(tar,ver.need); let n=88103; while(DB.tickets.some(t=>t.id==='TK-'+n)) n++;
   DB.ordenes++;
   const t={id:'TK-'+n,viaje:r.viaje.id,cliente:d.cliente,tb:d.tb,unidades:+d.uds,dim:{l:+d.largo,a:+d.ancho,h:+d.alto,p:+d.peso},n:ver.need,m3:esp.m3,kg:esp.kg,origen:alc.origen,destino:alc.destino,tarifa:tar.id,sub:pr.sub,igv:pr.igv,total:pr.total,estado:'RESERVADO',paso:0,creado:new Date(AHORA),hist:[],medio:null,op:'OP-'+pad(DB.ordenes,6)};
   DB.tickets.push(t); return {ticket:t};
@@ -449,15 +450,20 @@ route('rclientes',{title:'Reporte de clientes',crumb:'2.2 Operativo › 2.2.2 Re
   return guide(['Consolida por cliente los tickets vigentes, el espacio comprometido y lo facturado.','No incluye tickets vencidos ni cancelados.'],0)+
    `<table class="tbl"><thead><tr><th>Cliente</th><th>Tipo</th><th>Órdenes</th><th>Tickets (m³)</th><th>Peso</th><th>Facturado</th><th>Último ticket</th></tr></thead><tbody>${rows}</tbody></table>`; }});
 
+UI.tarF = {ts:'', al:''};
 route('rtarifas',{title:'Reporte de tarifas',crumb:'2.2 Operativo › 2.2.2 Reportes',view(){
   const est = t => tarifaVigente(t)?'NO VENCIDA':'VENCIDA';
-  const rows=DB.tarifas.map(t=>{ const p=by(DB.productos,t.prod); return `<tr><td>${t.id}</td><td>${t.prod}<br><small>${p?esc(nomCG(p.tb)):''}</small></td><td>${t.modalidad}</td><td>${BASE_TXT[t.base]}</td><td class="r">${t.base==='ticket'?money(t.valor):'—'}</td><td class="r">${t.base==='fija'?money(t.valor):'—'}</td><td>${dmy(t.desde)}–${dmy(t.hasta).slice(0,5)}</td><td>${pill(est(t))}</td></tr>`; }).join('');
-  const sin=DB.productos.filter(p=>!tarifaDe(p));
-  return guide(['Las tarifas son un <b>reporte</b>: se consultan aquí, no se mantienen como parámetro.','Cada producto tiene su tarifa: por ticket (Económico) o fija (Express).','La vigencia define si la tarifa está VENCIDA o NO VENCIDA respecto a la fecha del sistema.','La estimación del precio del ticket lee esta información.'],0)+
+  const f=UI.tarF, lista=DB.tarifas.filter(t=>(!f.ts||t.ts===f.ts)&&(!f.al||t.alcance===f.al));
+  const rows=lista.map(t=>{ const al=by(DB.alcances,t.alcance); return `<tr><td>${t.id}</td><td>${esc(nomSer(t.ts))}<br><small>${t.ts}</small></td><td>${esc(nomAL(t.alcance))}<br><small>${al?n2(al.km)+' km':''}</small></td><td>${t.modalidad}</td><td>${BASE_TXT[t.base]}</td><td class="r">${t.base==='ticket'?money(t.valor):'—'}</td><td class="r">${t.base==='fija'?money(t.valor):'—'}</td><td>${dmy(t.desde)}–${dmy(t.hasta).slice(0,5)}</td><td>${pill(est(t))}</td></tr>`; }).join('');
+  const sin=DB.servicios.filter(sv=>!tarifasDeServicio(sv.id).length);
+  const optS=[['','Todos los servicios'],...DB.servicios.map(x=>[x.id,x.nombre])], optA=[['','Todas las rutas'],...DB.alcances.filter(a=>a.km&&a.horas).map(a=>[a.id,a.origen+' → '+a.destino])];
+  return guide(['Las tarifas son un <b>reporte</b>: se consultan aquí, no se mantienen como parámetro.','Cada tarifa se asocia a un <b>tipo de servicio</b> y a un <b>alcance (ruta)</b>: por ticket (Económico) o fija (Express).','Filtre por servicio o por ruta para ver el precio de cada combinación.','La vigencia define si la tarifa está VENCIDA o NO VENCIDA respecto a la fecha del sistema.','La estimación del precio del ticket busca la tarifa del servicio del producto en la ruta elegida.'],0)+
    `<div class="infoline">${info('<b>Tarifa fija:</b> monto total estipulado que se cobra al cliente por la reserva exclusiva y prioritaria de la capacidad total del contenedor para un viaje específico. El servicio Express es exclusivo de una sola carga, cualquiera sea su tipo (REG-06).')}</div>
-    <table class="tbl"><thead><tr><th>Código</th><th>Producto</th><th>Modalidad</th><th>Base de cobro</th><th>Tarifa / Ticket</th><th>Tarifa fija</th><th>Vigencia</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table>
-    <p class="hint">✎ Vigencia = rango de fechas (desde–hasta) en que esa tarifa se aplica. Base de cobro = espacio comprometido en el contenedor (1 ticket = 1 m³). Fecha del sistema: ${dmy(ymd(AHORA))}.</p>
-    ${sin.length?msg('warn','Productos sin tarifa: '+sin.map(p=>p.id).join(', ')+' (no pueden activarse).'):''}`; }});
+    <div class="toolbar"><label>Servicio: <select data-change="tar-filtro" name="ts">${optsHTML(optS,f.ts)}</select></label> <label>Ruta: <select data-change="tar-filtro" name="al">${optsHTML(optA,f.al)}</select></label> <small>${lista.length} de ${DB.tarifas.length} tarifas</small></div>
+    <table class="tbl"><thead><tr><th>Código</th><th>Tipo de servicio</th><th>Alcance (ruta)</th><th>Modalidad</th><th>Base de cobro</th><th>Tarifa / Ticket</th><th>Tarifa fija</th><th>Vigencia</th><th>Estado</th></tr></thead><tbody>${rows||'<tr><td colspan="9">No hay tarifas para ese filtro.</td></tr>'}</tbody></table>
+    <p class="hint">✎ Tarifa = tipo de servicio + alcance. Vigencia = rango de fechas (desde–hasta) en que esa tarifa se aplica. Base de cobro = espacio comprometido en el contenedor (1 ticket = 1 m³). Fecha del sistema: ${dmy(ymd(AHORA))}.</p>
+    ${sin.length?msg('warn','Tipos de servicio sin tarifa: '+sin.map(x=>x.nombre).join(', ')+' (sus productos no pueden activarse).'):''}`; }});
+ACT['tar-filtro']=el=>{ UI.tarF[el.name]=el.value; render(); };
 
 route('tickets',{title:'Tickets emitidos',crumb:'2.2 Operativo › 2.2.2 Reportes',view(){
   const rows=[...DB.tickets].reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr data-act="tk-open" data-id="${t.id}" class="click"><td class="c">${t.medio?`<input type="checkbox" data-act="tk-check" data-id="${t.id}" ${UI.tkSel.has(t.id)?'checked':''} title="Seleccionar para exportar">`:'<small title="Sin pago no hay voucher">—</small>'}</td><td><b>${t.id}</b></td><td>${esc(by(DB.clientes,t.cliente).nombre)}</td><td>${esc(nomAL(v.alcance))}<br><small>${dmy(v.fecha)} · ${esc(vehDe(v).placa)} · ${esc(v.cont)}</small></td><td>${t.n} ticket(s)<br><small>${n2(t.m3)} m³ · ${n2(t.kg)} kg</small></td><td class="r">${money(t.total)}</td><td>${pill(t.estado)}</td></tr>`; }).join('');
@@ -474,12 +480,12 @@ ACT['tk-open']=el=>{ const t=by(DB.tickets,el.dataset.id), v=by(DB.viajes,t.viaj
    <tr><td>Estado</td><td>${pill(t.estado)} · último paso: ${t.paso?t.paso+' '+by(PASOS,t.paso,'n').nombre:'ninguno'}</td></tr></tbody></table>`,
    [...(t.medio?[{label:'⬇ Voucher (PDF)',cls:'okb',fn:()=>exportarVouchers([t.id])}]:[]),{label:'Ir al seguimiento',fn:()=>{closeModal();go('seguimiento/'+t.id)}},{label:'Cerrar',fn:closeModal}],{wide:true}); };
 
-/* ---- seguimiento por secuencia de pasos (reporte, sin GPS) ---- */
+/* ---- seguimiento por GPS y secuencia de pasos (reporte) ---- */
 route('seguimiento',{title:'Seguimiento del envío',crumb:'2.2 Operativo › 2.2.2 Reportes',view(arg){
   const t = by(DB.tickets,arg) || DB.tickets.find(x=>['EN RUTA','PAGADO'].includes(x.estado)) || DB.tickets[0];
   if(!t) return '<p>No hay tickets.</p>';
   const opts=DB.tickets.map(x=>[x.id,x.id+' · '+by(DB.clientes,x.cliente).nombre+' · '+x.estado]);
-  return guide(['Elija el ticket.','El traslado avanza por la <b>secuencia de 7 pasos</b> (es un reporte del envío, no un parámetro), sin GPS.','Cada paso lo confirma un autómata o el sistema; solo se puede confirmar el <b>siguiente</b> (REG-05).','La hora esperada = salida + duración del alcance × avance del paso.','Si un paso se confirma fuera de la tolerancia (POL-04), se crea un incidente de retraso solo.'],0)+
+  return guide(['Elija el ticket.','La posición de la unidad llega por <b>GPS</b> (no hay puntos de control): el mapa muestra dónde va el vehículo del envío.','El traslado avanza por la <b>secuencia de 7 pasos</b> (es un reporte del envío, no un parámetro).','Cada paso lo confirma un autómata o el GPS de la unidad; solo se puede confirmar el <b>siguiente</b> (REG-05).','La hora esperada = salida + duración del alcance × avance del paso; el GPS permite compararla con la hora real.','Si un paso se confirma fuera de la tolerancia (POL-04), se crea un incidente de retraso solo.'],0)+
    `<div class="toolbar"><label>Ticket: <select data-change="seg-pick">${optsHTML(opts,t.id)}</select></label></div><div id="seg-body">${segBody(t)}</div>
     <h4>Secuencia de pasos (referencia del reporte)</h4><table class="tbl mini"><thead><tr><th>Paso</th><th>Nombre</th><th>Se confirma cuando…</th><th>Lo confirma</th></tr></thead><tbody>${PASOS.map(p=>`<tr><td class="c">${p.n}</td><td>${p.nombre}</td><td>${p.desc}</td><td>${p.por}</td></tr>`).join('')}</tbody></table>
     <p class="hint">Tolerancia entre pasos: ${politica('POL-04',30)} min (Política POL-04).</p>`; }});
@@ -497,11 +503,12 @@ function segBody(t){
     ? msg('warn','⏳ El ticket está <b>RESERVADO</b>: espera el pago del cliente para iniciar el traslado. El supervisor solo puede consultarlo.')
     : msg('warn','⚠ El ticket está <b>RESERVADO</b>: debe pagarse para iniciar el traslado. <a class="btn okb" href="#/ticket/5" data-act="seg-topay" data-id="'+t.id+'">💳 Ir al pago</a>');
   else if(['VENCIDO','CANCELADO'].includes(t.estado)) acc=msg('bad','Ticket '+t.estado+': el espacio fue liberado.');
-  else if(nx && SESSION.role==='supervisor') acc=msg('info','Vista de solo lectura: los pasos los confirman los autómatas y el sistema. Siguiente paso: <b>'+nx+' '+by(PASOS,nx,'n').nombre+'</b>.');
+  else if(nx && SESSION.role==='supervisor') acc=msg('info','Vista de solo lectura: los pasos los confirman los autómatas y el GPS de la unidad. Siguiente paso: <b>'+nx+' '+by(PASOS,nx,'n').nombre+'</b>.');
   else if(nx) acc=`<div class="actions"><button class="btn okb" data-act="seg-confirm" data-id="${t.id}" data-late="0">▶ Simular paso ${nx} (${by(PASOS,nx,'n').nombre}) a tiempo</button> <button class="btn warnb" data-act="seg-confirm" data-id="${t.id}" data-late="1">⏱ Simular paso ${nx} con retraso (+45 min)</button><small> En producción lo confirma solo: ${by(PASOS,nx,'n').por}.</small></div>`;
   else acc=msg('ok','✔ Secuencia completa: el ticket está cerrado.');
   return `<div class="cards2"><div class="mini"><b>Ticket ${t.id}</b> ${pill(t.estado)}<br>Cliente: ${esc(c.nombre)}<br>${esc(nomAL(v.alcance))} · ${esc(nomCG(p.tb))}<br>Viaje ${v.id} · ${dmy(v.fecha)} · ${esc(vehDe(v).placa)} / ${esc(v.cont)}<br>Espacio: <b>${t.n} ticket(s) · ${n2(t.kg)} kg</b></div>
    <div class="mini"><b>Cómo se calcula la hora esperada</b><br>Salida <b>${hhmm(pl.sal)}</b> + (${pl.horas} h de duración del alcance × avance del paso)<br>Tolerancia entre pasos: <b>${seq.tolerancia} min</b><br>Protocolo: ${esc(p.prot)} · ${esc(by(DB.protocolos,p.prot).nombre)}</div></div>
+   ${gpsCardHTML(v,t)}
    <div class="pstrip">${seq.pasos.map(n=>`<span class="ps ${t.paso>=n?'done':n===nx?'cur':''}">${n} ${by(PASOS,n,'n').nombre}</span>`).join('')}</div>${acc}
    <table class="tbl"><thead><tr><th>Paso</th><th>Descripción</th><th>Lo confirma</th><th>Hora esperada</th><th>Hora real</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -510,6 +517,7 @@ ACT['seg-confirm']=el=>{
   const t=by(DB.tickets,el.dataset.id), v=by(DB.viajes,t.viaje), n=siguientePaso(v,t); if(!n) return;
   const late=el.dataset.late==='1', esp=esperadoPaso(v,n), real=addMin(esp,late?45:0), tol=secuenciaDe(v).tolerancia, ps=by(PASOS,n,'n');
   let por=ps.por;
+  if(ps.por.startsWith('GPS')){ const u=by(DB.vehiculos,v.veh); por='GPS '+((u&&u.gps)||'—')+' · '+((u&&u.placa)||''); }
   if(ps.por.startsWith('Autómata')){ const au=DB.automatas.find(a=>a.estado==='OK' && (taDe(a.tipo)||{}).funcion===ps.aut); if(!au){ toast('✖ No hay un autómata de '+ps.aut+' disponible (todos en mantenimiento): el paso queda pendiente','bad'); return; } por=au.id+' · '+au.nombre+' ('+taDe(au.tipo).nombre.toLowerCase()+')'; }
   t.hist.push({paso:n,real,por}); t.paso=n;
   if(n>=2) t.estado='EN RUTA'; if(n>=6) t.estado='ENTREGADO'; if(n===7) t.estado='CERRADO';
