@@ -233,3 +233,5 @@ a.tl:hover{background:var(--acc)} a.tl.active{background:var(--acc);border-left-
 .pconf{position:relative;text-align:center;padding:36px 20px 84px;background:#fff;border:2px solid var(--line);border-radius:4px;box-shadow:4px 4px 0 #2223}
 .pconf .pdico{margin:0 auto 12px} .pconfbox{max-width:520px;margin:16px auto;text-align:left}
 .pvch{position:absolute;right:16px;bottom:16px;border:2px solid var(--ink);background:#fff;border-radius:4px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer;box-shadow:2px 2px 0 #2223} .pvch:hover{background:var(--okbg)}
+
+.ptable td.pvc{white-space:nowrap}

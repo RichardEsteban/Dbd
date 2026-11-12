@@ -103,9 +103,9 @@ route('p-rastrear',{title:'',view(arg){
 ACT['p-pick-t']=el=>go('p-rastrear/'+el.value);
 
 route('p-envios',{title:'',view(){
-  const rows=[...DB.tickets].filter(t=>t.cliente===PCLI).reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr><td><b>${t.id}</b></td><td>${esc(nomAL(v.alcance))}</td><td>${dmy(v.fecha)}</td><td>${t.n} ticket(s) · ${n2(t.kg)} kg</td><td>${money(t.total)}</td><td><span class="pst ${t.estado.replace(' ','')}">${t.estado}</span></td><td>${t.estado==='RESERVADO'?`<a class="plink" href="#/p-pago/1/${t.id}">Pagar ›</a> `:''}<a class="plink" href="#/p-rastrear/${t.id}">Ver ›</a>${cancelable(t)?` <a class="plink cx" data-act="p-cancel" data-id="${t.id}" href="javascript:void(0)">Cancelar</a>`:''}</td></tr>`; }).join('');
+  const rows=[...DB.tickets].filter(t=>t.cliente===PCLI).reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr><td><b>${t.id}</b></td><td>${esc(nomAL(v.alcance))}</td><td>${dmy(v.fecha)}</td><td>${t.n} ticket(s) · ${n2(t.kg)} kg</td><td>${money(t.total)}</td><td><span class="pst ${t.estado.replace(' ','')}">${t.estado}</span></td><td class="pvc">${t.medio?`<a class="plink vch" data-act="vch-one" data-id="${t.id}" href="javascript:void(0)">⬇ Descargar voucher</a>`:''}</td><td>${t.estado==='RESERVADO'?`<a class="plink" href="#/p-pago/1/${t.id}">Pagar ›</a> `:''}<a class="plink" href="#/p-rastrear/${t.id}">Ver ›</a>${cancelable(t)?` <a class="plink cx" data-act="p-cancel" data-id="${t.id}" href="javascript:void(0)">Cancelar</a>`:''}</td></tr>`; }).join('');
   return `<div class="phead2"><h1 class="ph1">Mis envíos</h1><a class="pbtn" href="#/p-cotizar">Cotizar nuevo envío</a></div>
-   <div class="ptable"><table><thead><tr><th>Ticket</th><th>Ruta</th><th>Fecha</th><th>Espacio</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="7">Aún no tienes envíos.</td></tr>'}</tbody></table></div>`; }});
+   <div class="ptable"><table><thead><tr><th>Ticket</th><th>Ruta</th><th>Fecha</th><th>Espacio</th><th>Total</th><th>Estado</th><th>Voucher</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="8">Aún no tienes envíos.</td></tr>'}</tbody></table></div>`; }});
 
 /* ---- confirmación del pago y cuenta del cliente ---- */
 function pConfirmHTML(t){
