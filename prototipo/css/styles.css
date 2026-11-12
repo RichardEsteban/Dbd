@@ -214,7 +214,7 @@ a.tl:hover{background:var(--acc)} a.tl.active{background:var(--acc);border-left-
 @media(max-width:600px){.gpsgrid{grid-template-columns:auto 1fr}}
 
 /* ---- cupo en el calendario, visual de tickets, temporizador y confirmación ---- */
-.cd .cn{display:block;font-size:9.5px;font-weight:400;line-height:1;margin-top:-6px;opacity:.85}
+.cd .cn{display:block;font-size:9.5px;font-weight:400;line-height:1;opacity:.85}
 .cd.free,.cd.low{align-content:center;gap:0}
 .tkviz{margin:12px 0;border:2px solid var(--line);border-radius:4px;padding:10px 12px;background:#fff}
 .tkhead{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;font-size:13.5px} .tkhead .okt{color:var(--ok);font-weight:700} .tkhead .badt{color:var(--bad);font-weight:700}
