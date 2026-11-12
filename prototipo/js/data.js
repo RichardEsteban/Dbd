@@ -19,7 +19,7 @@ const PASOS = [
   {n:1, nombre:'Recibido',   desc:'La carga entra al contenedor y el ticket se valida', por:'Autómata de carga',   ref:['sal',-60], aut:'carga'},
   {n:2, nombre:'Despachado', desc:'El GPS detecta que la unidad salió del origen',       por:'GPS de la unidad',    ref:['sal',0]},
   {n:3, nombre:'En tránsito',desc:'El GPS reporta que la unidad avanza por la ruta',     por:'GPS de la unidad',    ref:['avance',0.25]},
-  {n:4, nombre:'En parada',  desc:'El GPS detecta la unidad en una parada intermedia',   por:'GPS de la unidad',    ref:['avance',0.55]},
+  {n:4, nombre:'En parada',  desc:'El GPS detecta la unidad detenida a mitad del recorrido (descanso)',   por:'GPS de la unidad',    ref:['avance',0.55]},
   {n:5, nombre:'En reparto', desc:'El GPS detecta la unidad en la ciudad de destino',    por:'GPS de la unidad',    ref:['lle',-30]},
   {n:6, nombre:'Entregado',  desc:'La carga llega a la terminal de destino',                por:'Autómata de descarga',ref:['lle',0], aut:'descarga'},
   {n:7, nombre:'Cerrado',    desc:'El ticket se cierra con conformidad',                 por:'Sistema',             ref:['lle',15]}
@@ -53,21 +53,21 @@ function seed(){
       {id:'TC-006', nombre:'Refrigerado', material:'MC-6', temp:'2 / 8 °C'}
     ],
     alcances:[
-      {id:'AL-001', origen:'Lima',     destino:'Chiclayo', via:'Asfaltada',      paradas:'Huacho, Trujillo', km:768,  horas:12},
-      {id:'AL-002', origen:'Lima',     destino:'Junín',    via:'Asfalt./Trocha', paradas:'La Oroya',         km:300,  horas:6},
-      {id:'AL-003', origen:'Trujillo', destino:'Tacna',    via:'Asfaltada',      paradas:'Lima, Ica',        km:1450, horas:25},
-      {id:'AL-004', origen:'Lima',     destino:'Loreto',   via:'Fluvial',        paradas:'—',                km:null, horas:null},
-      {id:'AL-005', origen:'Lima',     destino:'Arequipa', via:'Asfaltada',      paradas:'Ica, Nazca',       km:1010, horas:16},
-      {id:'AL-006', origen:'Lima',     destino:'Ica',      via:'Asfaltada',      paradas:'Cañete, Chincha',  km:300,  horas:4},
-      {id:'AL-007', origen:'Lima',     destino:'Trujillo', via:'Asfaltada',      paradas:'Huacho, Chimbote', km:560,  horas:9},
-      {id:'AL-008', origen:'Lima',     destino:'Piura',    via:'Asfaltada',      paradas:'Trujillo, Chiclayo',km:980, horas:15},
-      {id:'AL-009', origen:'Lima',     destino:'Cusco',    via:'Asfalt./Trocha', paradas:'Ica, Abancay',     km:1100, horas:20},
-      {id:'AL-010', origen:'Chiclayo', destino:'Lima',     via:'Asfaltada',      paradas:'Trujillo, Huacho', km:768,  horas:12},
-      {id:'AL-011', origen:'Arequipa', destino:'Lima',     via:'Asfaltada',      paradas:'Nazca, Ica',       km:1010, horas:16},
-      {id:'AL-012', origen:'Junín',    destino:'Lima',     via:'Asfalt./Trocha', paradas:'La Oroya',         km:300,  horas:6},
-      {id:'AL-013', origen:'Arequipa', destino:'Tacna',    via:'Asfaltada',      paradas:'Moquegua',         km:370,  horas:6},
-      {id:'AL-014', origen:'Lima',     destino:'Tacna',    via:'Asfaltada',      paradas:'Ica, Arequipa',    km:1200, horas:19},
-      {id:'AL-015', origen:'Trujillo', destino:'Lima',     via:'Asfaltada',      paradas:'Chimbote, Huacho', km:560,  horas:9}
+      {id:'AL-001', origen:'Lima',     destino:'Chiclayo', via:'Asfaltada',      km:768,  horas:12},
+      {id:'AL-002', origen:'Lima',     destino:'Junín',    via:'Asfalt./Trocha', km:300,  horas:6},
+      {id:'AL-003', origen:'Trujillo', destino:'Tacna',    via:'Asfaltada',      km:1450, horas:25},
+      {id:'AL-004', origen:'Lima',     destino:'Loreto',   via:'Fluvial',        km:null, horas:null},
+      {id:'AL-005', origen:'Lima',     destino:'Arequipa', via:'Asfaltada',      km:1010, horas:16},
+      {id:'AL-006', origen:'Lima',     destino:'Ica',      via:'Asfaltada',      km:300,  horas:4},
+      {id:'AL-007', origen:'Lima',     destino:'Trujillo', via:'Asfaltada',      km:560,  horas:9},
+      {id:'AL-008', origen:'Lima',     destino:'Piura',    via:'Asfaltada',      km:980, horas:15},
+      {id:'AL-009', origen:'Lima',     destino:'Cusco',    via:'Asfalt./Trocha', km:1100, horas:20},
+      {id:'AL-010', origen:'Chiclayo', destino:'Lima',     via:'Asfaltada',      km:768,  horas:12},
+      {id:'AL-011', origen:'Arequipa', destino:'Lima',     via:'Asfaltada',      km:1010, horas:16},
+      {id:'AL-012', origen:'Junín',    destino:'Lima',     via:'Asfalt./Trocha', km:300,  horas:6},
+      {id:'AL-013', origen:'Arequipa', destino:'Tacna',    via:'Asfaltada',      km:370,  horas:6},
+      {id:'AL-014', origen:'Lima',     destino:'Tacna',    via:'Asfaltada',      km:1200, horas:19},
+      {id:'AL-015', origen:'Trujillo', destino:'Lima',     via:'Asfaltada',      km:560,  horas:9}
     ],
     horarios:[
       {id:'HOR-001', diaSalida:'Lunes',     hSalida:'21:00', diaLlegada:'Martes',    hLlegada:'10:00'},
@@ -294,7 +294,7 @@ function secuenciaDe(v){ return { pasos:PASOS.map(p=>p.n), tolerancia:+politica(
 
 /* ---------- SEGUIMIENTO GPS ----------
    Cada vehículo lleva un equipo GPS que reporta su posición. No hay puntos de control fijos: el recorrido es
-   origen → paradas del alcance → destino y la posición se ubica sobre ese recorrido. (Prototipo: la señal se simula.) */
+   origen → destino del alcance y la posición se ubica sobre ese recorrido. (Prototipo: la señal se simula.) */
 const COORD = {'Lima':[-12.046,-77.043],'Chiclayo':[-6.771,-79.840],'Junín':[-11.158,-75.993],'Trujillo':[-8.112,-79.029],'Tacna':[-18.006,-70.246],
   'Arequipa':[-16.409,-71.537],'Ica':[-14.068,-75.729],'Piura':[-5.194,-80.633],'Cusco':[-13.532,-71.967],'Huacho':[-11.107,-77.605],
   'La Oroya':[-11.519,-75.900],'Cañete':[-13.077,-76.384],'Chincha':[-13.410,-76.132],'Chimbote':[-9.085,-78.578],'Nazca':[-14.830,-74.939],
@@ -303,7 +303,7 @@ function distGeo(a,b){ const R=6371, rad=x=>x*Math.PI/180, dl=rad(b[0]-a[0]), dg
   const h=Math.sin(dl/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dg/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
 /* recorrido del alcance: lista de lugares con su coordenada y su avance (0–1) sobre la ruta */
 function rutaGPS(al){
-  const nombres=[al.origen,...String(al.paradas||'').split(',').map(x=>x.trim()).filter(x=>x&&x!=='—'),al.destino];
+  const nombres=[al.origen,al.destino];
   const pts=nombres.filter(n=>COORD[n]).map(n=>({n,c:COORD[n],acum:0}));
   for(let i=1;i<pts.length;i++) pts[i].acum=pts[i-1].acum+distGeo(pts[i-1].c,pts[i].c);
   const tot=pts.length?pts[pts.length-1].acum:0; pts.forEach(q=>q.f=tot?q.acum/tot:0); return {pts,tot};

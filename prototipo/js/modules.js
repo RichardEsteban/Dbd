@@ -95,8 +95,8 @@ const PARAM_CFG = {
     validate:dupNombre('tiposContenedor','tipo de contenedor'),
     used:r=>[...DB.contenedores.filter(c=>c.tipo===r.id).map(c=>'Contenedor '+c.id),...DB.productos.filter(p=>p.tc===r.id).map(p=>'Producto '+p.id)]},
   al:{key:'al',tabla:'alcances',label:'Alcance',prefix:'AL-',padLen:3,canDisable:false,
-    cols:[{label:'Código',k:'id'},{label:'Origen',k:'origen'},{label:'Destino',k:'destino'},{label:'Tipo de vía',k:'via'},{label:'Paradas',k:'paradas'},{label:'Distancia',f:r=>r.km?n2(r.km)+' km':'—'},{label:'Duración estimada',f:r=>r.horas?'≈ '+r.horas+' h':'—'}],
-    fields:[{k:'origen',label:'Origen (provincia)',type:'text',req:1},{k:'destino',label:'Destino (provincia)',type:'text',req:1},{k:'via',label:'Tipo de vía',type:'select',opts:()=>['Asfaltada','Asfalt./Trocha','Fluvial','Mixta'].map(x=>[x,x]),req:1},{k:'paradas',label:'Paradas intermedias',type:'text',ph:'Huacho, Trujillo'},{k:'km',label:'Distancia (km)',type:'number',req:1,min:1},{k:'horas',label:'Duración estimada (h)',type:'number',req:1,min:1,help:'Es una duración estimada: de aquí salen las horas esperadas de cada paso del seguimiento.'}],
+    cols:[{label:'Código',k:'id'},{label:'Origen',k:'origen'},{label:'Destino',k:'destino'},{label:'Tipo de vía',k:'via'},{label:'Distancia',f:r=>r.km?n2(r.km)+' km':'—'},{label:'Duración estimada',f:r=>r.horas?'≈ '+r.horas+' h':'—'}],
+    fields:[{k:'origen',label:'Origen (provincia)',type:'text',req:1},{k:'destino',label:'Destino (provincia)',type:'text',req:1},{k:'via',label:'Tipo de vía',type:'select',opts:()=>['Asfaltada','Asfalt./Trocha','Fluvial','Mixta'].map(x=>[x,x]),req:1},{k:'km',label:'Distancia (km)',type:'number',req:1,min:1},{k:'horas',label:'Duración estimada (h)',type:'number',req:1,min:1,help:'Es una duración estimada: de aquí salen las horas esperadas de cada paso del seguimiento.'}],
     validate:v=>v.origen&&v.destino&&v.origen.toLowerCase()===v.destino.toLowerCase()?{destino:'El destino no puede ser igual al origen'}:{},
     used:r=>DB.viajes.filter(v=>v.alcance===r.id).map(v=>'Viaje '+v.id)},
   hor:{key:'hor',tabla:'horarios',label:'Horario',prefix:'HOR-',padLen:3,canDisable:false,
@@ -123,7 +123,7 @@ const INFO = {
   car:'El tipo de carga solo tiene código y material. Las dimensiones y el peso los digita el cliente al cotizar; el estado del envío se ve en el Registro de flota.',
   ser:'Económico: se cobra por espacio comprometido (tickets). Express: tarifa fija por la reserva exclusiva de todo el contenedor; es exclusivo de una sola carga, cualquiera sea su tipo. La tarifa de cada servicio se define por alcance (ruta) en el Reporte de tarifas.',
   hor:'El horario fija la salida y la llegada programada: es la ventana en la que debe viajar el producto. La llegada estimada de cada envío es la salida más la duración del Alcance, y debe caber en esa ventana (REG-07).',
-  al:'La duración es una estimación: se usa para calcular la hora esperada de cada paso, que se contrasta con la posición real que reporta el GPS de la unidad. Las paradas son lugares del recorrido, no puntos de control. Cada tarifa se asocia a un tipo de servicio y a un alcance.',
+  al:'La duración es una estimación: se usa para calcular la hora esperada de cada paso, que se contrasta con la posición real que reporta el GPS de la unidad. Cada tarifa se asocia a un tipo de servicio y a un alcance.',
   ta:'Los autómatas físicos se registran en la flota. Cada paso del envío que lo confirma un autómata exige uno de este tipo, disponible.'
 };
 route('parametros',{title:'Parámetros generales',crumb:'2.1 Gerencial › 2.1.1 Mantenimiento de parámetros',view(arg){
@@ -287,16 +287,26 @@ function calendarioHTML(d,act){
   for(let n=1;n<=dias;n++){ const f=y+'-'+pad(m+1)+'-'+pad(n), dia=diaDe(f);
     if(f<hoy){ cel.push(`<span class="cd past">${n}</span>`); continue; }
     if(dia!==th.diaSalida){ cel.push(`<span class="cd none" title="Sin salida: este producto sale los ${th.diaSalida}">${n}</span>`); continue; }
-    const r=resolverViaje(prod,alc,f); let cls='full', tip='';
+    const r=resolverViaje(prod,alc,f); let cls='full', tip='', verLibre='';
     if(r.error){ tip=r.error.replace(/<[^>]+>/g,''); }
-    else { const ver=verificarEspacio(r.viaje,pedido,prod); tip=ver.ok?ver.libre.n+' ticket(s) y '+n2(ver.libre.kg)+' kg libres':ver.motivo.replace(/<[^>]+>/g,'');
+    else { const ver=verificarEspacio(r.viaje,pedido,prod); tip=ver.ok?ver.libre.n+' ticket(s) y '+n2(ver.libre.kg)+' kg libres':ver.motivo.replace(/<[^>]+>/g,''); verLibre=ver.libre.n;
       cls=!ver.ok?'full':((ver.libre.n-ver.need)/ver.cap.n<0.25?'low':'free'); }
-    cel.push(cls==='full'?`<span class="cd full" title="${esc(tip)}">${n}</span>`:`<button type="button" class="cd ${cls} ${d.fecha===f?'on':''}" data-act="${act}" data-f="${f}" title="${esc(tip)}">${n}</button>`); }
+    const quedan=(!r.error&&cls!=='full')?`<small class="cn">${verLibre}</small>`:''; cel.push(cls==='full'?`<span class="cd full" title="${esc(tip)}">${n}</span>`:`<button type="button" class="cd ${cls} ${d.fecha===f?'on':''}" data-act="${act}" data-f="${f}" title="${esc(tip)}">${n}${quedan}</button>`); }
   const ini=new Date(HOY.getFullYear(),HOY.getMonth(),1), prev=(y===ini.getFullYear()&&m===ini.getMonth());
   return `<div class="cal"><div class="calh"><button type="button" class="calb" data-act="cal-nav" data-dir="-1" ${prev?'disabled':''}>‹</button><b>${MESES[m]} ${y}</b><button type="button" class="calb" data-act="cal-nav" data-dir="1">›</button></div>
    <div class="calg">${['Lu','Ma','Mi','Ju','Vi','Sá','Do'].map(x=>`<span class="cdw">${x}</span>`).join('')}${cel.join('')}</div>
-   <div class="calleg"><i class="lg free"></i> Disponible <i class="lg low"></i> Poco cupo <i class="lg full"></i> Sin cupo <i class="lg none"></i> Sin salida · el cupo considera lo que va a enviar (${pedido.n} ticket(s), ${n2(pedido.kg)} kg)</div></div>`; }
+   <div class="calleg"><i class="lg free"></i> Disponible <i class="lg low"></i> Poco cupo <i class="lg full"></i> Sin cupo <i class="lg none"></i> Sin salida · el número pequeño es la cantidad de tickets que quedan · el cupo considera lo que va a enviar (${pedido.n} ticket(s), ${n2(pedido.kg)} kg)</div></div>`; }
 ACT['cal-nav']=el=>{ let {y,m}=UI.cal; m+=+el.dataset.dir; if(m<0){ m=11; y--; } if(m>11){ m=0; y++; } UI.cal={y,m}; if(location.hash.startsWith('#/ticket')){ $('#tbody').innerHTML=t2(D()); } else render(); };
+
+
+/* visual de tickets: un cuadro por cada m³ (ticket) del contenedor del viaje */
+function ticketsViz(ver){
+  const cap=ver.cap.n, uso=Math.min(cap,ver.uso.n), libre=Math.max(0,cap-uso), sel=Math.min(ver.need,libre), resto=Math.max(0,libre-sel);
+  const cel=[...Array(uso).fill('o'),...Array(sel).fill('s'),...Array(resto).fill('f')].map((c,i)=>`<i class="tk ${c}" title="Ticket ${i+1} de ${cap}"></i>`).join('');
+  const quedan=Math.max(0,libre-ver.need);
+  return `<div class="tkviz"><div class="tkhead"><b>Tickets disponibles en este viaje</b><span class="${ver.ok?'okt':'badt'}">Quedan ${libre} de ${cap}</span></div><div class="tkgrid">${cel}</div>
+   <div class="tkleg"><i class="tk o"></i> Ocupados (${uso}) <i class="tk s"></i> ${ver.express?'Se reservarán (Express: todo el contenedor)':'Tu envío ('+ver.need+')'} <i class="tk f"></i> Libres después (${quedan})</div></div>`;
+}
 
 const prodsDisponibles = d => DB.productos.filter(p=>p.activo&&p.tb===d.tb&&tarifasDeServicio(p.ts).some(t=>tarifaVigente(t)));
 function t2(d){
@@ -309,7 +319,7 @@ function t2(d){
    <label class="fld"><span>Origen *</span><input name="origen" list="dl-lugares" value="${esc(d.origen)}" data-change="t2-set" placeholder="Ej. Lima"></label>
    <label class="fld"><span>Destino *</span><input name="destino" list="dl-lugares" value="${esc(d.destino)}" data-change="t2-set" placeholder="Ej. Chiclayo"></label><datalist id="dl-lugares">${lugares().map(l=>'<option value="'+esc(l)+'">').join('')}</datalist>
    </div><div class="fld"><span>Fecha del viaje * <small>(elija un día disponible del calendario)</small></span>${calendarioHTML(d,'t2-fecha')}${d.fecha?'<small>Fecha elegida: <b>'+diaDe(d.fecha)+' '+dmy(d.fecha)+'</b></small>':''}</div>
-   ${d.rutaErr?msg('bad','✖ '+d.rutaErr):al?msg('info','Ruta '+esc(al.origen)+' → '+esc(al.destino)+': '+n2(al.km)+' km · '+al.horas+' h · '+esc(al.via)+(al.paradas&&al.paradas!=='—'?' · paradas: '+esc(al.paradas):'')):''}
+   ${d.rutaErr?msg('bad','✖ '+d.rutaErr):al?msg('info','Ruta '+esc(al.origen)+' → '+esc(al.destino)+': '+n2(al.km)+' km · '+al.horas+' h · '+esc(al.via)):''}
    <div id="t2-res">${t2res(d)}</div>
    <div class="nav"><a class="btn" href="#/ticket/1">← Atrás</a><button class="btn okb" data-act="t2-next" ${ok2(d)?'':'disabled'}>Siguiente →</button></div>`;
 }
@@ -320,6 +330,7 @@ function t2res(d){
   const fila=(n,unit,cap,uso,sol)=>`<tr><td>${n}</td><td>${n2(cap)} ${unit}</td><td>${n2(uso)} ${unit}</td><td>${n2(sol)} ${unit}</td><td class="${(cap-uso-sol)<0?'neg':''}">${n2(cap-uso-sol)} ${unit}</td><td style="min-width:160px">${bar(Math.min(cap,uso+sol),cap,unit)}</td></tr>`;
   return `<div class="cards2"><div class="mini"><b>Viaje ${esc(v.id)}${d.res.nuevo?' <i>(nuevo)</i>':''}</b><br>Unidad: ${esc(veh.id)} · ${esc(veh.placa)} (${esc(nomTV(veh.tipo))})<br>Contenedor: ${esc(con.id)} · ${esc(nomTC(con.tipo))}<br>Salida: ${diaDe(v.fecha)} ${dmy(v.fecha)} ${hhmm(pl.sal)}<br>Llegada estimada: ${hhmm(pl.lle)} <small>(salida + ${pl.horas} h del alcance)</small></div>
    <div class="mini"><b>Servicio y protocolo</b><br>${esc(i.ts.nombre)} · ${esc(i.ts.modalidad)}<br>${esc(i.prot.id)} · ${esc(i.prot.nombre)}<br><small>${esc(i.prot.secuencia)}</small>${exp?'<br><b>Express:</b> reserva exclusiva de todo el contenedor ('+ver.cap.n+' tickets).':''}</div></div>
+   ${ticketsViz(ver)}
    <table class="tbl"><thead><tr><th>Dimensión</th><th>Capacidad</th><th>Ya comprometido</th><th>${exp?'Se reservará':'Solicitado'}</th><th>Disponible después</th><th>Ocupación</th></tr></thead><tbody>${fila('Tickets (m³)','tickets',ver.cap.n,ver.uso.n,ver.need)}${fila('Peso','kg',ver.cap.kg,ver.uso.kg,d.res.esp.kg)}</tbody></table>
    ${d.res.ok?msg('ok','✔ El espacio cabe en tickets y en peso. Puede continuar.'):msg('bad','✖ '+d.res.error+' <br><small>El ticket no se genera. Pruebe otra fecha o reduzca las unidades.</small>')}`;
 }
@@ -381,7 +392,31 @@ function payMethodHTML(t,ctx){
      <div class="mrow"><div><b>Pago en bancos</b><div class="logos"><span class="lg bcp">BCP</span></div></div>${btn('banco')}</div></div>
     <div class="payright"><b class="sub u">RUTA DEL ENVÍO</b><p>Origen: ${esc(o.al.origen)}<br>Destino: ${esc(o.al.destino)}<br><br>${diaDe(v0(t).fecha)} ${dmy(v0(t).fecha)} · salida ${hhmm(pl.sal)} · llegada estimada ${hhmm(pl.lle)}</p>
      <b class="sub u">RESUMEN DE TU ORDEN</b><p>${o.html}</p></div></div>
-   <p class="hint">Ticket ${t.id} · reserva vigente hasta las ${hhmm(addMin(t.creado,+politica('POL-02',15)))}</p></div>`; }
+   <div class="payfoot"><p class="hint">Ticket ${t.id} · reserva vigente hasta las ${hhmm(addMin(t.creado,+politica('POL-02',15)))}</p>${timerHTML(t)}</div></div>`; }
+
+/* ---- temporizador de la reserva (cuenta regresiva para pagar) ---- */
+UI.tm = {};
+function reservaRestante(t){
+  const venc=addMin(t.creado,+politica('POL-02',15)).getTime(); let a=UI.tm[t.id];
+  if(!a||a.sim!==AHORA.getTime()) a=UI.tm[t.id]={sim:AHORA.getTime(),real:Date.now()};
+  return venc-AHORA.getTime()-(Date.now()-a.real);
+}
+const mmss = ms => { const s=Math.max(0,Math.ceil(ms/1000)); return pad(Math.floor(s/60))+':'+pad(s%60); };
+const tmCls = ms => ms<=60000?'bad':ms<=180000?'warn':'';
+function timerHTML(t){
+  if(t.estado!=='RESERVADO') return '';
+  const ms=reservaRestante(t);
+  return `<div class="ptimer ${tmCls(ms)}" data-timer="${t.id}" title="Si no pagas antes de que llegue a 00:00, la reserva vence y el espacio se libera (POL-02)"><span>⏱ Tiempo para pagar</span><b>${mmss(ms)}</b></div>`;
+}
+function tickTimers(){
+  document.querySelectorAll('[data-timer]').forEach(el=>{
+    const t=by(DB.tickets,el.dataset.timer); if(!t||t.estado!=='RESERVADO') return;
+    const ms=reservaRestante(t);
+    if(ms<=0){ t.estado='VENCIDO'; toast('⏱ La reserva '+t.id+' venció: el espacio fue liberado','bad'); render(); return; }
+    el.querySelector('b').textContent=mmss(ms); el.className='ptimer '+tmCls(ms);
+  });
+}
+setInterval(tickTimers,1000);
 const v0 = t => by(DB.viajes,t.viaje);
 UI.pm = {}; UI.payErr = {}; UI.payVals = {};
 function payFormHTML(t,ctx){
@@ -401,7 +436,8 @@ function payFormHTML(t,ctx){
    <div class="payurl">◀ ▶ ⟳ <span>https://www.transporteseguro.pe/pago/${t.op}</span></div>
    <div class="paycols"><div class="payleft">${left}</div>
     <div class="payright"><div class="pbl"><h4>Datos de la Compra</h4><table class="kv"><tr><td>Empresa:</td><td>Transporte Seguro</td></tr><tr><td>Nro. de Orden:</td><td>${t.op}</td></tr><tr><td>Medio:</td><td>${MEDIOS[m]}</td></tr><tr><td>Moneda:</td><td>SOL</td></tr><tr><td>Monto:</td><td class="monto">${money(t.total)}</td></tr></table></div>
-     <div class="pbl acts"><a class="lnk" href="${back}">Retornar</a>${m==='tarjeta'?`<button class="payb" form="payform">Pagar ✔</button>`:''}</div></div></div></div>`; }
+     <div class="pbl acts"><a class="lnk" href="${back}">Retornar</a>${m==='tarjeta'?`<button class="payb" form="payform">Pagar ✔</button>`:''}</div></div></div>
+   <div class="payfoot"><p class="hint">Al pagar verás la confirmación y podrás descargar tu voucher.</p>${timerHTML(t)}</div></div>`; }
 function payDoneHTML(t,ctx){
   return `<div class="paydone"><div class="pdico">✔</div><h3>¡Pago confirmado!</h3><p>Orden <b>${t.op}</b> · ${money(t.total)} · ${MEDIOS[t.medio]||''}</p>
    <p>Ticket <b>${t.id}</b> ${pill(t.estado)} — ${t.n} ticket(s) reservados. El traslado puede iniciar.</p>
@@ -415,7 +451,7 @@ function pagar(t,m){
   if(t.estado!=='RESERVADO'){ toast('✖ El ticket '+t.id+' está '+t.estado+' y no admite pago','bad'); return false; }
   t.estado='PAGADO'; t.medio=m; t.pagado=new Date(AHORA); toast('💳 Pago confirmado por la pasarela: orden '+t.op); return true; }
 ACT['pay-select']=el=>{ UI.pm[el.dataset.t]=el.dataset.m; UI.payErr[el.dataset.t]={}; go(el.dataset.ctx==='p'?'p-pago/2/'+el.dataset.t:'ticket/6'); };
-ACT['pay-sim']=el=>{ const t=by(DB.tickets,el.dataset.t); pagar(t,UI.pm[t.id]); render(); };
+ACT['pay-sim']=el=>{ const t=by(DB.tickets,el.dataset.t); const ok=pagar(t,UI.pm[t.id]); if(ok&&el.dataset.ctx==='p') go('p-confirmacion/'+t.id); else render(); };
 ACT['pay-submit']=f=>{
   const t=by(DB.tickets,f.dataset.t), fd=new FormData(f), v={}; ['marca','nro','cvv','mes','anio','nombre','apellido','email','email2'].forEach(k=>v[k]=String(fd.get(k)||'').trim());
   const e={}; const nro=v.nro.replace(/\s/g,'');
@@ -426,7 +462,7 @@ ACT['pay-submit']=f=>{
   if(!/^\S+@\S+\.\S+$/.test(v.email)) e.email='Correo no válido'; else if(v.email!==v.email2) e.email2='Los correos no coinciden';
   UI.payVals[t.id]=v; UI.payErr[t.id]=e;
   if(Object.keys(e).length){ toast('✖ Revise los datos de la tarjeta','bad'); render(); return; }
-  if(pagar(t,'tarjeta')) UI.payVals[t.id]={}; render(); };
+  if(pagar(t,'tarjeta')){ UI.payVals[t.id]={}; if(f.dataset.ctx==='p'){ go('p-confirmacion/'+t.id); return; } } render(); };
 
 function t5(d){ return `<h3>5. Medio de pago</h3>${payMethodHTML(d.ticket,'wf')}`; }
 function t6(d){ return `<h3>6. Orden de pago</h3>${payFormHTML(d.ticket,'wf')}`; }

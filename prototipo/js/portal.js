@@ -3,11 +3,11 @@
    ============================================================ */
 let PCLI = '70112233';                         // cliente con sesión iniciada (cambia al iniciar sesión)
 const ICON = {'CG-001':'🧊','CG-002':'🥚','CG-003':'📦','CG-004':'☢️','CG-005':'🌾','CG-006':'💊','CG-007':'💵'};
-const PORTAL_NAV=[['p-catalogo','Catálogo de servicios'],['p-cotizar','Cotizar envío'],['p-rastrear','Rastrear envío'],['p-envios','Mis envíos']];
+const PORTAL_NAV=[['p-catalogo','Catálogo de servicios'],['p-cotizar','Cotizar envío'],['p-rastrear','Rastrear envío'],['p-envios','Mis envíos'],['p-cuenta','Mi cuenta']];
 function portalLayout(cur,inner){
   const cli=by(DB.clientes,PCLI), interno=SESSION.role!=='cliente';
   const nav=PORTAL_NAV.map(([k,l],i)=>`<a class="tl d1 link ${cur.key===k||(k==='p-cotizar'&&cur.key==='p-pago')?'active':''}" href="#/${k}"><span class="num">${i+1}</span>${l}</a>`).join('');
-  const crumb='Portal del cliente › '+((PORTAL_NAV.find(x=>x[0]===cur.key)||[0,cur.key==='p-pago'?'Pago del envío':''])[1]);
+  const crumb='Portal del cliente › '+((PORTAL_NAV.find(x=>x[0]===cur.key)||[0,cur.key==='p-pago'?'Pago del envío':cur.key==='p-confirmacion'?'Pago confirmado':''])[1]);
   return `<header class="top"><div class="brand">🚚 <b>Transporte Seguro</b> <small>portal del cliente</small></div>
      <div class="who">${esc(cli?cli.nombre:'')} ${interno?`<a href="#/${HOME[SESSION.role]}" class="lnk">← Volver al sistema interno</a>`:''} <a href="#/login" class="lnk">Salir</a></div></header>
      <nav class="side"><div class="tg"><div class="tl d0">Portal del cliente</div>${nav}</div><div class="legend">Reserva espacio en un contenedor (1 ticket = 1 m³), paga en línea y sigue tu envío por GPS y por sus 7 pasos.</div></nav>
@@ -42,6 +42,7 @@ route('p-cotizar',{title:'',view(){
     right=`<div class="pprice2"><small>Total estimado (incluye IGV)</small><b>${money(pr.total)}</b><span>${pr.detalle}</span><small>Tarifa ${esc(tar.id)} · ${esc(nomSer(tar.ts))} · ${esc(nomAL(tar.alcance))}</small></div>
      <div class="prow"><span>Espacio a reservar</span><b>${ver.need} ticket(s) · ${n2(d.res.esp.kg)} kg${ver.express?' (Express)':''}</b></div>
      <div class="prow"><span>Disponible ese día</span><b>${ver.libre.n} ticket(s) · ${n2(ver.libre.kg)} kg</b></div>
+     ${ticketsViz(ver)}
      <div class="prow"><span>Salida / llegada estimada</span><b>${hhmm(pl.sal)} → ${hhmm(pl.lle)}</b></div>
      ${d.res.ok?`<div class="pok">✔ Hay espacio para tu carga</div><button class="pbtn big full" data-act="pd-solicitar">Solicitar servicio</button>`:`<div class="perr">${d.res.error}<br><small>Prueba otra fecha o reduce la cantidad de bultos.</small></div>`}`; } }
   return `<h1 class="ph1">Cotizar envío</h1><div class="pcols"><div class="pbox"><h3>Datos del envío</h3>
@@ -80,8 +81,9 @@ ACT['pd-reset']=()=>{ UI.pd=null; }; ACT['pd-reset2']=()=>{ UI.pd=null; render()
 route('p-pago',{title:'',view(arg){
   const [paso,id]=arg.split('/'); const t=by(DB.tickets,id);
   if(!t) return '<div class="pempty">No se encontró la orden. <a href="#/p-envios">Ver mis envíos</a></div>';
+  if(t.estado==='PAGADO'&&paso==='2') return pConfirmHTML(t);
   if(t.estado==='VENCIDO') return '<div class="perr">La reserva venció y el espacio fue liberado. <a href="#/p-cotizar">Cotiza nuevamente</a>.</div>';
-  return `<div class="pay-portal"><h1 class="ph1">${paso==='2'?'Orden de pago':'Elige tu medio de pago'}</h1>${paso==='2'?payFormHTML(t,'p'):t.estado==='PAGADO'?payDoneHTML(t,'p'):payMethodHTML(t,'p')}</div>`; }});
+  return `<div class="pay-portal"><h1 class="ph1">${paso==='2'?'Orden de pago':'Elige tu medio de pago'}</h1>${paso==='2'?payFormHTML(t,'p'):t.estado==='PAGADO'?pConfirmHTML(t):payMethodHTML(t,'p')}</div>`; }});
 
 route('p-rastrear',{title:'',view(arg){
   const mios=DB.tickets.filter(t=>t.cliente===PCLI);
@@ -104,3 +106,30 @@ route('p-envios',{title:'',view(){
   const rows=[...DB.tickets].filter(t=>t.cliente===PCLI).reverse().map(t=>{ const v=by(DB.viajes,t.viaje); return `<tr><td><b>${t.id}</b></td><td>${esc(nomAL(v.alcance))}</td><td>${dmy(v.fecha)}</td><td>${t.n} ticket(s) · ${n2(t.kg)} kg</td><td>${money(t.total)}</td><td><span class="pst ${t.estado.replace(' ','')}">${t.estado}</span></td><td>${t.estado==='RESERVADO'?`<a class="plink" href="#/p-pago/1/${t.id}">Pagar ›</a> `:''}<a class="plink" href="#/p-rastrear/${t.id}">Ver ›</a>${cancelable(t)?` <a class="plink cx" data-act="p-cancel" data-id="${t.id}" href="javascript:void(0)">Cancelar</a>`:''}</td></tr>`; }).join('');
   return `<div class="phead2"><h1 class="ph1">Mis envíos</h1><a class="pbtn" href="#/p-cotizar">Cotizar nuevo envío</a></div>
    <div class="ptable"><table><thead><tr><th>Ticket</th><th>Ruta</th><th>Fecha</th><th>Espacio</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="7">Aún no tienes envíos.</td></tr>'}</tbody></table></div>`; }});
+
+/* ---- confirmación del pago y cuenta del cliente ---- */
+function pConfirmHTML(t){
+  const v=by(DB.viajes,t.viaje), pl=planViaje(v), p=by(DB.productos,v.prod);
+  const pagado=t.pagado?dmy(ymd(new Date(t.pagado)))+' '+hhmm(new Date(t.pagado)):'—';
+  return `<div class="pconf"><div class="pdico">✔</div><h1>¡Pago confirmado!</h1><p class="pmute">Recibimos tu pago y tu espacio quedó asegurado. El traslado inicia en la fecha de salida.</p>
+   <div class="pbox pconfbox"><div class="prow"><span>Orden</span><b>${esc(t.op)}</b></div><div class="prow"><span>Ticket</span><b>${esc(t.id)} · ${t.n} ticket(s)</b></div>
+    <div class="prow"><span>Servicio</span><b>${esc(nombreProducto(p))}</b></div><div class="prow"><span>Ruta</span><b>${esc(nomAL(v.alcance))}</b></div>
+    <div class="prow"><span>Salida</span><b>${diaDe(v.fecha)} ${dmy(v.fecha)} · ${hhmm(pl.sal)}</b></div><div class="prow"><span>Medio de pago</span><b>${esc(MEDIOS[t.medio]||'—')}</b></div>
+    <div class="prow"><span>Fecha de pago</span><b>${pagado}</b></div><div class="prow"><span>Total pagado</span><b>${money(t.total)}</b></div></div>
+   <div class="pact"><a class="pbtn big" href="#/p-catalogo">🏠 Volver al inicio</a><a class="pbtn ghost big" href="#/p-cuenta">👤 Ir a mi cuenta</a><a class="pbtn ghost big" href="#/p-rastrear/${t.id}">Rastrear mi envío</a></div>
+   <button class="pvch" data-act="vch-one" data-id="${t.id}">⬇ Descargar voucher (PDF)</button></div>`;
+}
+route('p-confirmacion',{title:'',view(id){
+  const t=by(DB.tickets,id);
+  if(!t||!t.medio) return '<div class="pempty">No hay un pago confirmado para esta orden. <a href="#/p-envios">Ver mis envíos</a></div>';
+  return pConfirmHTML(t); }});
+
+route('p-cuenta',{title:'',view(){
+  const c=by(DB.clientes,PCLI), mis=DB.tickets.filter(t=>t.cliente===PCLI), vig=mis.filter(t=>!['VENCIDO','CANCELADO'].includes(t.estado));
+  const pagado=sum(vig.filter(t=>t.medio),'total'), saldo=sum(vig.filter(t=>t.estado==='RESERVADO'&&!reservaVencida(t)),'total');
+  return `<h1 class="ph1">Mi cuenta</h1><div class="pcols"><div class="pbox"><h3>Mis datos</h3>
+    <div class="prow"><span>Cliente</span><b>${esc(c.nombre)}</b></div><div class="prow"><span>Documento</span><b>${esc(c.id)}</b></div><div class="prow"><span>Tipo</span><b>${esc(c.tipo)}</b></div>
+    <div class="prow"><span>Teléfono</span><b>${esc(c.tel)}</b></div><div class="prow"><span>Correo</span><b>${esc(c.email)}</b></div></div>
+   <div class="pbox"><h3>Mi actividad</h3><div class="prow"><span>Traslados contratados</span><b>${vig.length}</b></div><div class="prow"><span>Tickets comprados</span><b>${sum(vig,'n')}</b></div>
+    <div class="prow"><span>Monto pagado</span><b>${money(pagado)}</b></div><div class="prow"><span>Saldo pendiente (reservas por pagar)</span><b>${money(saldo)}</b></div>
+    <p style="margin-top:12px"><a class="pbtn" href="#/p-envios">Ver mis envíos</a> <a class="pbtn ghost" href="#/p-cotizar">Cotizar nuevo envío</a></p></div></div>`; }});

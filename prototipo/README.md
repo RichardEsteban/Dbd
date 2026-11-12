@@ -58,5 +58,5 @@ y abrir http://localhost:8765. Atajos: `?role=gerente`, `?role=supervisor`, `?ro
 - **Tipo de carga** = solo código y material; el cliente digita largo, ancho, alto y peso de su bulto y la cantidad.
 - **Contenedor** = cada unidad de la flota tiene su volumen (m³); el tipo define material y temperatura.
 - **Express** = tarifa fija, reserva todo el contenedor y es exclusivo de una sola carga, cualquiera sea su tipo.
-- **Seguimiento por GPS** = cada vehículo lleva un equipo GPS (campo en el Registro de flota, REG-08). El reporte y el portal muestran un mapa con la posición, km recorridos, velocidad y última señal. **No hay puntos de control**: el recorrido es origen → paradas del alcance → destino. Los pasos 2 a 5 los confirma el GPS, los pasos 1 y 6 los autómatas y el 7 el sistema. (En el prototipo la señal GPS se simula a partir del reloj y del avance del viaje.)
+- **Seguimiento por GPS** = cada vehículo lleva un equipo GPS (campo en el Registro de flota, REG-08). El reporte y el portal muestran un mapa con la posición, km recorridos, velocidad y última señal. **No hay puntos de control**: el recorrido es origen → destino del alcance (el alcance ya no tiene paradas). Los pasos 2 a 5 los confirma el GPS, los pasos 1 y 6 los autómatas y el 7 el sistema. (En el prototipo la señal GPS se simula a partir del reloj y del avance del viaje.)
 

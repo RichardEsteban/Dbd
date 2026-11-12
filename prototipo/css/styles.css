@@ -212,3 +212,24 @@ a.tl:hover{background:var(--acc)} a.tl.active{background:var(--acc);border-left-
 .gpsgrid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 14px;margin:10px 0;font-size:13px} .gpsgrid span{opacity:.7}
 .gpsbar{height:8px;background:#eee;border:1px solid var(--line)} .gpsbar i{display:block;height:100%;background:var(--acc)}
 @media(max-width:600px){.gpsgrid{grid-template-columns:auto 1fr}}
+
+/* ---- cupo en el calendario, visual de tickets, temporizador y confirmación ---- */
+.cd .cn{display:block;font-size:9.5px;font-weight:400;line-height:1;margin-top:-6px;opacity:.85}
+.cd.free,.cd.low{align-content:center;gap:0}
+.tkviz{margin:12px 0;border:2px solid var(--line);border-radius:4px;padding:10px 12px;background:#fff}
+.tkhead{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;font-size:13.5px} .tkhead .okt{color:var(--ok);font-weight:700} .tkhead .badt{color:var(--bad);font-weight:700}
+.tkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(20px,1fr));gap:4px}
+.tk{display:inline-block;width:100%;height:20px;border:1.5px solid #888;border-radius:3px;background:#fff;vertical-align:middle}
+.tk.o{background:#bdbdbd;border-color:#8a8a8a} .tk.s{background:#4a90e2;border-color:#2f6db5} .tk.f{background:var(--okbg);border-color:var(--ok)}
+.tkleg{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin-top:8px;font-size:12px;color:#555} .tkleg .tk{width:14px;height:14px;margin-right:3px}
+.payw{position:relative}
+.payfoot{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:6px 14px 12px}
+.payfoot .hint{margin:0}
+.ptimer{display:inline-flex;flex-direction:column;align-items:center;border:2px solid var(--ink);border-radius:6px;padding:6px 14px;background:#fff;box-shadow:2px 2px 0 #2223;min-width:150px}
+.ptimer span{font-size:11.5px;color:#555} .ptimer b{font-size:24px;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.ptimer.warn{border-color:var(--warn);background:var(--warnbg)} .ptimer.warn b{color:var(--warn)}
+.ptimer.bad{border-color:var(--bad);background:var(--badbg)} .ptimer.bad b{color:var(--bad);animation:tmblink 1s steps(2) infinite}
+@keyframes tmblink{50%{opacity:.45}}
+.pconf{position:relative;text-align:center;padding:36px 20px 84px;background:#fff;border:2px solid var(--line);border-radius:4px;box-shadow:4px 4px 0 #2223}
+.pconf .pdico{margin:0 auto 12px} .pconfbox{max-width:520px;margin:16px auto;text-align:left}
+.pvch{position:absolute;right:16px;bottom:16px;border:2px solid var(--ink);background:#fff;border-radius:4px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer;box-shadow:2px 2px 0 #2223} .pvch:hover{background:var(--okbg)}
